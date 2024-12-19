@@ -12,5 +12,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Start the SignIn activity
+        Intent intent = new Intent(MainActivity.this, SignIn.class);
+        startActivity(intent);
+
+        // Finish MainActivity to prevent going back to it
+        finish();
     }
+
 }
