@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:background="@color/white">
+
+    <!-- Logo -->
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="260dp"
+        android:layout_height="230dp"
+        app:srcCompat="@drawable/logo"
+        android:layout_gravity="center"
+        android:contentDescription="App Logo" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/textViewRegister"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Register"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_gravity="center"
+        android:layout_marginTop="10dp"
+        android:textColor="@color/black" />
+
+    <!-- Name Field -->
+    <EditText
+        android:id="@+id/editTextName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Name"
+        android:inputType="text"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/rounded_corner"
+        android:padding="12dp" />
+
+    <!-- Email Field -->
+    <EditText
+        android:id="@+id/editTextEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Email"
+        android:inputType="textEmailAddress"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/rounded_corner"
+        android:padding="12dp" />
+
+    <!-- Password Field -->
+    <EditText
+        android:id="@+id/editTextPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Password"
+        android:inputType="textPassword"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/rounded_corner"
+        android:padding="12dp" />
+
+    <!-- Confirm Password Field -->
+    <EditText
+        android:id="@+id/editTextConfirmPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Confirm Password"
+        android:inputType="textPassword"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/rounded_corner"
+        android:padding="12dp" />
+
+    <!-- Register Button -->
+    <Button
+        android:id="@+id/buttonRegister"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Register"
+        android:layout_marginTop="30dp"
+        android:backgroundTint="@color/primary"
+        android:textColor="@color/white"
+        android:padding="15dp"
+        android:background="@drawable/rounded_corner" />
+
+</LinearLayout>
