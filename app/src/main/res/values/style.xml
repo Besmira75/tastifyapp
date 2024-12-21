@@ -1,0 +1,11 @@
+<resources>
+    <!-- Custom Theme extending Theme.AppCompat -->
+    <style name="Theme.Tastifyapp" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Customize your theme here -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/purple_700</item>
+        <item name="colorAccent">@color/teal_200</item>
+        <item name="android:textColor">@color/black</item>
+        <item name="android:windowBackground">@color/white</item>
+    </style>
+</resources>
