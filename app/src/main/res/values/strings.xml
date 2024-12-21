@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">tastifyapp</string>
+    <string name="logo_description">App logo</string>
+    <string name="hint_email_address">Email Address</string>
+    <string name="hint_password">Password</string>
+    <string name="sign_in_button_text">Sign In</string>
+    <string name="welcome_text">Welcome to Tastify!</string>
 </resources>
