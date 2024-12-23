@@ -5,4 +5,5 @@
     <string name="hint_password">Password</string>
     <string name="sign_in_button_text">Sign In</string>
     <string name="welcome_text">Welcome to Tastify!</string>
+    <string name="sign_in">Sign In</string>
 </resources>

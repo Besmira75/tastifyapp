@@ -1,8 +1,10 @@
 // SignUp.java - Activity for User Registration
 package com.example.tastifyapp;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -34,22 +36,27 @@ public class SignUp extends AppCompatActivity {
 
         DB = new DB(this);
 
-        signUpButton.setOnClickListener(v -> {
-            if (validateFields()) {
+        // Handle sign-up button click
+        signUpButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 String name = nameField.getText().toString().trim();
                 String email = emailField.getText().toString().trim();
                 String password = passwordField.getText().toString().trim();
 
-                // Hash and salt the password before storing it
-                String saltedPassword = hashPassword(password);
+                // Validate inputs
+                if (!validateFields()) return;
 
-                // Proceed with sign-up logic
-                if (DB.checkUserEmail(email)) {
-                    Toast.makeText(this, "User already exists.", Toast.LENGTH_SHORT).show();
-                } else if (DB.insertUser(name, email, saltedPassword)) {
-                    Toast.makeText(this, "Signup successful!", Toast.LENGTH_SHORT).show();
+                // Insert the user into the database
+                boolean success = DB.insertUser(name, email, password);
+                if (success) {
+                    Toast.makeText(SignUp.this, "Sign-Up Successful", Toast.LENGTH_SHORT).show();
+                    // Navigate to the login page
+                    Intent intent = new Intent(SignUp.this, SignIn.class);
+                    startActivity(intent);
+                    finish(); // Close the current activity
                 } else {
-                    Toast.makeText(this, "Failed to register user.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SignUp.this, "Error in Sign-Up", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -89,28 +96,5 @@ public class SignUp extends AppCompatActivity {
         return true;
     }
 
-    private String hashPassword(String password) {
-        try {
-            // Generate a random salt
-            SecureRandom secureRandom = new SecureRandom();
-            byte[] salt = new byte[16];
-            secureRandom.nextBytes(salt);
 
-            // Hash the password with SHA-256 and salt
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(salt);
-            byte[] hashedPassword = digest.digest(password.getBytes());
-
-            // Convert hashed password to hexadecimal string
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashedPassword) {
-                hexString.append(String.format("%02x", b));
-            }
-
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 }

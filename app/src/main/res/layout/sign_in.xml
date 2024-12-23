@@ -40,33 +40,49 @@
             android:textColor="@color/black"
             android:textStyle="bold" />
 
-        <!-- Email Address EditText -->
-        <EditText
-            android:id="@+id/editTextTextEmailAddress"
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/emailInputLayout"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginBottom="16dp"
-            android:hint="@string/hint_email_address"
-            android:inputType="textEmailAddress"
-            android:padding="12dp"
-            tools:ignore="TouchTargetSize" />
+            android:layout_height="wrap_content"
+            app:boxStrokeColor="@color/black"
+            app:errorEnabled="true">
 
-        <!-- Password EditText -->
-        <EditText
-            android:id="@+id/editTextTextPassword"
+            <EditText
+                android:id="@+id/editTextTextEmailAddress"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="@string/hint_email_address"
+                android:inputType="textEmailAddress"
+                android:padding="12dp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/passwordInputLayout"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginBottom="24dp"
-            android:hint="@string/hint_password"
-            android:inputType="textPassword"
-            android:padding="12dp"
-            tools:ignore="TouchTargetSize" />
+            android:layout_height="wrap_content"
+            app:boxStrokeColor="@color/black"
+            app:errorEnabled="true">
+
+            <EditText
+                android:id="@+id/editTextTextPassword"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="@string/hint_password"
+                android:inputType="textPassword"
+                android:padding="12dp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Sign-In Button -->
         <Button
             android:id="@+id/button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/sign_in_button_text" />
+            android:layout_marginTop="20dp"
+            android:backgroundTint="@color/primary"
+            android:text="@string/sign_in"
+            android:textColor="@color/white"
+            android:textSize="16sp" />
+
+
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
