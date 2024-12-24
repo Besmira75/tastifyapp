@@ -16,7 +16,7 @@ import java.security.SecureRandom;
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 4; // Incremented version to include 'salt'
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -26,33 +26,15 @@ public class DB extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         // User Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS User (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "name TEXT NOT NULL, " +
+                "email TEXT NOT NULL UNIQUE, " +
+                "password TEXT NOT NULL, " +
+                "salt TEXT NOT NULL);");
 
-            // User Table
-            db.execSQL("CREATE TABLE User (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "name TEXT NOT NULL, " + // Add the name column
-                    "email TEXT NOT NULL UNIQUE, " +
-                    "password TEXT NOT NULL, " +
-                    "salt TEXT NOT NULL);");
-        db.execSQL("CREATE INDEX idx_username ON User (name);");
-            db.execSQL("CREATE INDEX idx_email ON User (email);");
-
-            // Add other table creations here...
-
-
-
-        // Check if the index exists before creating it
-        Cursor cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_username';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_username ON User (username);");
-        }
-        cursor.close();
-
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_email';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_email ON User (email);");
-        }
-        cursor.close();
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_username ON User (name);");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_email ON User (email);");
 
         // Recipe Table
         db.execSQL("CREATE TABLE IF NOT EXISTS Recipe (" +
@@ -63,19 +45,6 @@ public class DB extends SQLiteOpenHelper {
                 "instructions TEXT NOT NULL, " +
                 "FOREIGN KEY (user_id) REFERENCES User (id));");
 
-        // Check if the index exists before creating it
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_user_id';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_user_id ON Recipe (user_id);");
-        }
-        cursor.close();
-
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_title';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_title ON Recipe (title);");
-        }
-        cursor.close();
-
         // RecipeIngredient Table
         db.execSQL("CREATE TABLE IF NOT EXISTS RecipeIngredient (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -85,19 +54,6 @@ public class DB extends SQLiteOpenHelper {
                 "FOREIGN KEY (recipe_id) REFERENCES Recipe (id), " +
                 "FOREIGN KEY (ingredient_id) REFERENCES Ingredient (id));");
 
-        // Check if the index exists before creating it
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_recipe_id';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_recipe_id ON RecipeIngredient (recipe_id);");
-        }
-        cursor.close();
-
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_ingredient_id';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_ingredient_id ON RecipeIngredient (ingredient_id);");
-        }
-        cursor.close();
-
         // Ingredient Table
         db.execSQL("CREATE TABLE IF NOT EXISTS Ingredient (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -105,30 +61,10 @@ public class DB extends SQLiteOpenHelper {
                 "category_id INTEGER NOT NULL, " +
                 "FOREIGN KEY (category_id) REFERENCES Category (id));");
 
-        // Check if the index exists before creating it
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_emri';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_emri ON Ingredient (emri);");
-        }
-        cursor.close();
-
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_category_id';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_category_id ON Ingredient (category_id);");
-        }
-        cursor.close();
-
         // Category Table
         db.execSQL("CREATE TABLE IF NOT EXISTS Category (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "category TEXT NOT NULL UNIQUE);");
-
-        // Check if the index exists before creating it
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_category';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_category ON Category (category);");
-        }
-        cursor.close();
 
         // Image Table
         db.execSQL("CREATE TABLE IF NOT EXISTS Image (" +
@@ -136,22 +72,16 @@ public class DB extends SQLiteOpenHelper {
                 "recipe_id INTEGER NOT NULL, " +
                 "image_url TEXT NOT NULL, " +
                 "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
-
-        // Check if the index exists before creating it
-        cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_recipe_id_image';", null);
-        if (cursor.getCount() == 0) {
-            db.execSQL("CREATE INDEX idx_recipe_id_image ON Image (recipe_id);");
-        }
-        cursor.close();
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < 3) {
-            // Add 'name' column if it doesn't exist
-            db.execSQL("ALTER TABLE User ADD COLUMN name TEXT;");
+        if (oldVersion < 4) {
+            // Add 'salt' column if it doesn't exist
+            db.execSQL("ALTER TABLE User ADD COLUMN salt TEXT;");
         }
     }
+
     // Generate a random salt
     private String generateSalt() {
         SecureRandom secureRandom = new SecureRandom();
@@ -222,5 +152,4 @@ public class DB extends SQLiteOpenHelper {
 
         return userExists; // Return true if user exists, false if not
     }
-
 }
