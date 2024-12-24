@@ -16,7 +16,7 @@ import java.security.SecureRandom;
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 5; // Incremented version for 2FA table
+    private static final int DATABASE_VERSION = 6; // Incremented version for 2FA table
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -37,6 +37,11 @@ public class DB extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE IF NOT EXISTS TwoFactorAuth (" +
                 "email TEXT PRIMARY KEY, " +
                 "two_fa_code TEXT NOT NULL);");
+
+        // Password Reset Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS PasswordReset (" +
+                "email TEXT PRIMARY KEY, " +
+                "reset_code TEXT NOT NULL);");
     }
 
     @Override
@@ -45,6 +50,11 @@ public class DB extends SQLiteOpenHelper {
             db.execSQL("CREATE TABLE IF NOT EXISTS TwoFactorAuth (" +
                     "email TEXT PRIMARY KEY, " +
                     "two_fa_code TEXT NOT NULL);");
+        }
+        if (oldVersion < 6) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS PasswordReset (" +
+                    "email TEXT PRIMARY KEY, " +
+                    "reset_code TEXT NOT NULL);");
         }
     }
 
@@ -133,4 +143,60 @@ public class DB extends SQLiteOpenHelper {
         db.close();
         return null;
     }
+    public boolean storeResetCode(String email, String resetCode) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("email", email);
+        contentValues.put("reset_code", resetCode);
+
+        long result = db.replace("PasswordReset", null, contentValues);
+        db.close();
+        return result != -1;
+    }
+
+    public String getResetCode(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT reset_code FROM PasswordReset WHERE email = ?", new String[]{email});
+        if (cursor.moveToFirst()) {
+            String code = cursor.getString(0);
+            cursor.close();
+            db.close();
+            return code;
+        }
+        cursor.close();
+        db.close();
+        return null;
+    }
+    public boolean updatePassword(String email, String newPassword) {
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        // Generate a new salt and hash the new password
+        String salt = generateSalt();
+        String hashedPassword = hashPassword(newPassword, salt);
+
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("password", hashedPassword);
+        contentValues.put("salt", salt);
+
+        int rowsAffected = db.update("User", contentValues, "email = ?", new String[]{email});
+        db.close();
+        return rowsAffected > 0;
+    }
+
+    public boolean isEmailRegistered(String email) {
+        SQLiteDatabase database = this.getReadableDatabase();
+        String query = "SELECT COUNT(*) FROM User WHERE email = ?";
+        Cursor cursor = database.rawQuery(query, new String[]{email});
+
+        boolean isRegistered = false;
+        if (cursor.moveToFirst()) {
+            isRegistered = cursor.getInt(0) > 0; // Check if count > 0
+        }
+        cursor.close();
+        database.close();
+        return isRegistered;
+    }
+
+
+
 }
