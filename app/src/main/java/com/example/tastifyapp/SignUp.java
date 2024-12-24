@@ -9,8 +9,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -40,6 +43,10 @@ public class SignUp extends AppCompatActivity {
         signUpButton = findViewById(R.id.buttonRegister);
 
         DB = new DB(this);
+
+        // Initialize and animate logo
+        ImageView logo = findViewById(R.id.imageView);
+        animateLogo(logo);
 
         // Create notification channel (required for Android 8.0 and above)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -88,6 +95,24 @@ public class SignUp extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void animateLogo(ImageView logo) {
+        // Create RotateAnimation (from 0 to 360 degrees 3 times)
+        RotateAnimation rotate = new RotateAnimation(
+                0f, 360f * 3,  // Rotate from 0 to 360 * 3
+                Animation.RELATIVE_TO_SELF, 0.5f,  // Pivot point (center of the image)
+                Animation.RELATIVE_TO_SELF, 0.5f
+        );
+
+        // Set duration for 3 spins
+        rotate.setDuration(2000);  // 2 seconds for the animation
+
+        // Set animation to stop after 3 spins
+        rotate.setFillAfter(true);  // Keeps the end position
+
+        // Start the animation
+        logo.startAnimation(rotate);
     }
 
     private boolean validateFields() {
