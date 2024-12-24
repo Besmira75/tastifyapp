@@ -31,9 +31,15 @@
             android:theme="@style/Theme.Tastifyapp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <!-- Add the AddRecipe Activity -->
+        <activity android:name=".AddRecipe"
+            android:exported="true"
+            android:label="Add Recipe"
+            android:theme="@style/Theme.Tastifyapp" >
         </activity>
     </application>
 
