@@ -16,7 +16,7 @@ import java.security.SecureRandom;
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 4; // Incremented version to include 'salt'
+    private static final int DATABASE_VERSION = 5; // Incremented version for 2FA table
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -33,52 +33,18 @@ public class DB extends SQLiteOpenHelper {
                 "password TEXT NOT NULL, " +
                 "salt TEXT NOT NULL);");
 
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_username ON User (name);");
-        db.execSQL("CREATE INDEX IF NOT EXISTS idx_email ON User (email);");
-
-        // Recipe Table
-        db.execSQL("CREATE TABLE IF NOT EXISTS Recipe (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "user_id INTEGER NOT NULL, " +
-                "title TEXT NOT NULL, " +
-                "description TEXT NOT NULL, " +
-                "instructions TEXT NOT NULL, " +
-                "FOREIGN KEY (user_id) REFERENCES User (id));");
-
-        // RecipeIngredient Table
-        db.execSQL("CREATE TABLE IF NOT EXISTS RecipeIngredient (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "recipe_id INTEGER NOT NULL, " +
-                "ingredient_id INTEGER NOT NULL, " +
-                "sasia REAL NOT NULL, " +
-                "FOREIGN KEY (recipe_id) REFERENCES Recipe (id), " +
-                "FOREIGN KEY (ingredient_id) REFERENCES Ingredient (id));");
-
-        // Ingredient Table
-        db.execSQL("CREATE TABLE IF NOT EXISTS Ingredient (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "emri TEXT NOT NULL, " +
-                "category_id INTEGER NOT NULL, " +
-                "FOREIGN KEY (category_id) REFERENCES Category (id));");
-
-        // Category Table
-        db.execSQL("CREATE TABLE IF NOT EXISTS Category (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "category TEXT NOT NULL UNIQUE);");
-
-        // Image Table
-        db.execSQL("CREATE TABLE IF NOT EXISTS Image (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "recipe_id INTEGER NOT NULL, " +
-                "image_url TEXT NOT NULL, " +
-                "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
+        // 2FA Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS TwoFactorAuth (" +
+                "email TEXT PRIMARY KEY, " +
+                "two_fa_code TEXT NOT NULL);");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (oldVersion < 4) {
-            // Add 'salt' column if it doesn't exist
-            db.execSQL("ALTER TABLE User ADD COLUMN salt TEXT;");
+        if (oldVersion < 5) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS TwoFactorAuth (" +
+                    "email TEXT PRIMARY KEY, " +
+                    "two_fa_code TEXT NOT NULL);");
         }
     }
 
@@ -87,16 +53,16 @@ public class DB extends SQLiteOpenHelper {
         SecureRandom secureRandom = new SecureRandom();
         byte[] saltBytes = new byte[16];
         secureRandom.nextBytes(saltBytes);
-        return Base64.encodeToString(saltBytes, Base64.NO_WRAP); // Use Base64 for simplicity
+        return Base64.encodeToString(saltBytes, Base64.NO_WRAP);
     }
 
     // Hash the password with the salt
     private String hashPassword(String password, String salt) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(salt.getBytes()); // Use the salt
+            digest.update(salt.getBytes());
             byte[] hashedPassword = digest.digest(password.getBytes());
-            return Base64.encodeToString(hashedPassword, Base64.NO_WRAP); // Use Base64 for simplicity
+            return Base64.encodeToString(hashedPassword, Base64.NO_WRAP);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return null;
@@ -107,18 +73,18 @@ public class DB extends SQLiteOpenHelper {
     public boolean insertUser(String name, String email, String password) {
         SQLiteDatabase db = this.getWritableDatabase();
 
-        String salt = generateSalt(); // Generate a salt
-        String saltedHash = hashPassword(password, salt); // Create the salted hash
+        String salt = generateSalt();
+        String saltedHash = hashPassword(password, salt);
 
         ContentValues contentValues = new ContentValues();
-        contentValues.put("name", name); // Add name to values
+        contentValues.put("name", name);
         contentValues.put("email", email);
-        contentValues.put("password", saltedHash); // Store salted hash
-        contentValues.put("salt", salt); // Store salt
+        contentValues.put("password", saltedHash);
+        contentValues.put("salt", salt);
 
         long result = db.insert("User", null, contentValues);
         db.close();
-        return result != -1; // Return true if insert is successful
+        return result != -1;
     }
 
     // Validate user credentials
@@ -129,27 +95,42 @@ public class DB extends SQLiteOpenHelper {
             String storedPassword = cursor.getString(0);
             String salt = cursor.getString(1);
 
-            String enteredPasswordHash = hashPassword(password, salt); // Hash the entered password
+            String enteredPasswordHash = hashPassword(password, salt);
 
             cursor.close();
             db.close();
 
-            return storedPassword.equals(enteredPasswordHash); // Compare hashes
+            return storedPassword.equals(enteredPasswordHash);
         }
         cursor.close();
         db.close();
         return false;
     }
 
-    public boolean checkUserEmail(String email) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM User WHERE email = ?", new String[]{email});
+    // Store the 2FA code
+    public boolean storeTwoFACode(String email, String code) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("email", email);
+        contentValues.put("two_fa_code", code);
 
-        // If a record with the given email exists, cursor will have a result
-        boolean userExists = cursor.getCount() > 0;
+        long result = db.replace("TwoFactorAuth", null, contentValues);
+        db.close();
+        return result != -1;
+    }
+
+    // Retrieve the 2FA code
+    public String getTwoFACode(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT two_fa_code FROM TwoFactorAuth WHERE email = ?", new String[]{email});
+        if (cursor.moveToFirst()) {
+            String code = cursor.getString(0);
+            cursor.close();
+            db.close();
+            return code;
+        }
         cursor.close();
         db.close();
-
-        return userExists; // Return true if user exists, false if not
+        return null;
     }
 }
