@@ -7,6 +7,7 @@ import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
@@ -55,6 +56,25 @@ public class SignIn extends AppCompatActivity {
                 } else {
                     Toast.makeText(SignIn.this, "Invalid Credentials", Toast.LENGTH_SHORT).show();
                 }
+            }
+        });
+        // Link to Forgot Password Activity
+        TextView forgotPassword = findViewById(R.id.forgotPassword);
+        forgotPassword.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(SignIn.this, PasswordResetActivity.class);
+                startActivity(intent);
+            }
+        });
+
+        // Link to Sign Up Activity
+        TextView signUp = findViewById(R.id.signUp);
+        signUp.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(SignIn.this, SignUp.class);
+                startActivity(intent);
             }
         });
     }

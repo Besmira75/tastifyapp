@@ -32,6 +32,8 @@
         </activity>
         <activity android:name=".TwoFactorActivity" />
 
+        <activity android:name=".PasswordResetActivity" />
+        <activity android:name=".ResetPasswordActivity" />
 
         <activity
             android:name=".MainActivity"
