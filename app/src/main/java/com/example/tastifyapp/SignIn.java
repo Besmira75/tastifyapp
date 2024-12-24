@@ -9,54 +9,49 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-import com.google.android.material.textfield.TextInputLayout;
-import com.google.android.material.textfield.TextInputEditText;
 
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.security.SecureRandom;
 
 public class SignIn extends AppCompatActivity {
-    private TextInputLayout emailInputLayout;
-    private TextInputLayout passwordInputLayout;
     private EditText emailEditText;
     private EditText passwordEditText;
     private Button signInButton;
     private DB db;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.sign_in);
 
-        emailInputLayout = findViewById(R.id.emailInputLayout);
-        passwordInputLayout = findViewById(R.id.passwordInputLayout);
         emailEditText = findViewById(R.id.editTextTextEmailAddress);
         passwordEditText = findViewById(R.id.editTextTextPassword);
         signInButton = findViewById(R.id.button);
         db = new DB(this);
 
-
-        // Handle login button click
         signInButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String email = emailInputLayout.getEditText().getText().toString().trim();
-                String password = passwordInputLayout.getEditText().getText().toString().trim();
+                String email = emailEditText.getText().toString().trim();
+                String password = passwordEditText.getText().toString().trim();
 
-                // Validate inputs
-                if (!validateFields()) return;
+                if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
+                    Toast.makeText(SignIn.this, "Email and Password are required", Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
-                // Validate credentials
-                boolean isValid = db.validateUser(email, password);
-                if (isValid) {
-                    Toast.makeText(SignIn.this, "Login Successful", Toast.LENGTH_SHORT).show();
-                    // Navigate to the main activity
-                    Intent intent = new Intent(SignIn.this, MainActivity.class);
+                if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    Toast.makeText(SignIn.this, "Enter a valid email", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                if (db.validateUser(email, password)) {
+                    sendTwoFACode(email);
+
+                    Intent intent = new Intent(SignIn.this, TwoFactorActivity.class);
+                    intent.putExtra("email", email);
                     startActivity(intent);
-                    finish(); // Close the current activity
                 } else {
                     Toast.makeText(SignIn.this, "Invalid Credentials", Toast.LENGTH_SHORT).show();
                 }
@@ -64,45 +59,56 @@ public class SignIn extends AppCompatActivity {
         });
     }
 
-    private boolean validateFields() {
-        String email = emailEditText.getText().toString().trim();
-        String password = passwordEditText.getText().toString().trim();
-
-        boolean isValid = true;
-
-        // Validate email
-        if (TextUtils.isEmpty(email)) {
-            emailInputLayout.setError("Email is required");
-            isValid = false;
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailInputLayout.setError("Enter a valid email");
-            isValid = false;
-        } else {
-            emailInputLayout.setError(null);
-        }
-
-        // Validate password
-        if (TextUtils.isEmpty(password)) {
-            passwordInputLayout.setError("Password is required");
-            isValid = false;
-        } else {
-            passwordInputLayout.setError(null);
-        }
-
-        // Proceed if inputs are valid
-        if (isValid) {
-            boolean userExists = db.validateUser(email, password);
-            if (userExists) {
-                Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show();
-
-                // Navigate to main activity
-                Intent intent = new Intent(SignIn.this, MainActivity.class);
-                startActivity(intent);
-                finish(); // Close the SignIn activity
-            } else {
-                Toast.makeText(this, "Invalid email or password!", Toast.LENGTH_SHORT).show();
-            }
-        }
-        return true;
+    private String generateSixDigitCode() {
+        SecureRandom random = new SecureRandom();
+        int code = 100000 + random.nextInt(900000);
+        return String.valueOf(code);
     }
+
+    private void sendTwoFACode(String email) {
+        String code = generateSixDigitCode();
+        db.storeTwoFACode(email, code);
+
+        // Email sending logic
+        new Thread(() -> {
+            try {
+                // Replace with your email credentials
+                final String fromEmail = "astritkrasniqi079@gmail.com";
+                final String password = "htme gnwk usqq ewpd";
+
+                // Configure properties
+                java.util.Properties props = new java.util.Properties();
+                props.put("mail.smtp.host", "smtp.gmail.com"); // Change if not using Gmail
+                props.put("mail.smtp.port", "587");
+                props.put("mail.smtp.auth", "true");
+                props.put("mail.smtp.starttls.enable", "true");
+
+                // Create session
+                javax.mail.Session session = javax.mail.Session.getInstance(props,
+                        new javax.mail.Authenticator() {
+                            @Override
+                            protected javax.mail.PasswordAuthentication getPasswordAuthentication() {
+                                return new javax.mail.PasswordAuthentication(fromEmail, password);
+                            }
+                        });
+
+                // Create email message
+                javax.mail.Message message = new javax.mail.internet.MimeMessage(session);
+                message.setFrom(new javax.mail.internet.InternetAddress(fromEmail));
+                message.setRecipients(javax.mail.Message.RecipientType.TO,
+                        javax.mail.internet.InternetAddress.parse(email));
+                message.setSubject("Your 2FA Code");
+                message.setText("Your 2FA code is: " + code);
+
+                // Send email
+                javax.mail.Transport.send(message);
+            } catch (Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(SignIn.this, "Failed to send email", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+
+        Toast.makeText(this, "2FA code sent to your email", Toast.LENGTH_SHORT).show();
+    }
+
 }
