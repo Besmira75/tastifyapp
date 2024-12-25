@@ -5,11 +5,13 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Patterns;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -26,10 +28,15 @@ public class SignIn extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.sign_in);
 
+        // Initialize fields
         emailEditText = findViewById(R.id.editTextTextEmailAddress);
         passwordEditText = findViewById(R.id.editTextTextPassword);
         signInButton = findViewById(R.id.button);
         db = new DB(this);
+
+        // Initialize and animate the logo
+        ImageView logo = findViewById(R.id.imageView);
+        animateLogo(logo);
 
         signInButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -58,6 +65,7 @@ public class SignIn extends AppCompatActivity {
                 }
             }
         });
+
         // Link to Forgot Password Activity
         TextView forgotPassword = findViewById(R.id.forgotPassword);
         forgotPassword.setOnClickListener(new View.OnClickListener() {
@@ -77,6 +85,24 @@ public class SignIn extends AppCompatActivity {
                 startActivity(intent);
             }
         });
+    }
+
+    private void animateLogo(ImageView logo) {
+        // Create RotateAnimation (from 0 to 360 degrees 3 times)
+        RotateAnimation rotate = new RotateAnimation(
+                0f, 360f * 3,  // Rotate from 0 to 360 * 3
+                Animation.RELATIVE_TO_SELF, 0.5f,  // Pivot point (center of the image)
+                Animation.RELATIVE_TO_SELF, 0.5f
+        );
+
+        // Set duration for 3 spins
+        rotate.setDuration(2000);  // 2 seconds for the animation
+
+        // Set animation to stop after 3 spins
+        rotate.setFillAfter(true);  // Keeps the end position
+
+        // Start the animation
+        logo.startAnimation(rotate);
     }
 
     private String generateSixDigitCode() {
@@ -130,5 +156,4 @@ public class SignIn extends AppCompatActivity {
 
         Toast.makeText(this, "2FA code sent to your email", Toast.LENGTH_SHORT).show();
     }
-
 }
