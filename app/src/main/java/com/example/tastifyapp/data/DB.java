@@ -1,21 +1,36 @@
-package com.example.tastifyapp;
+package com.example.tastifyapp.data;
 
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
+
+import com.example.tastifyapp.data.models.Recipe;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
     private static final int DATABASE_VERSION = 2;
 
+    private static DB instance;
+
     // Constructor
     public DB(@Nullable Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    public static synchronized DB getInstance(Context context) {
+        if (instance == null) {
+            instance = new DB(context.getApplicationContext());
+        }
+        return instance;
     }
 
     @Override
@@ -136,8 +151,10 @@ public class DB extends SQLiteOpenHelper {
         if (cursor.getCount() == 0) {
             db.execSQL("CREATE INDEX idx_recipe_id_image ON Image (recipe_id);");
         }
+
         cursor.close();
     }
+
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -164,6 +181,67 @@ public class DB extends SQLiteOpenHelper {
         return result != -1; // Return true if insert is successful
     }
 
+    public List<String> getCategories() {
+        List<String> categories = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT category FROM Category", null);
+
+
+
+        // Get the index of the 'category' column
+        int categoryIndex = cursor.getColumnIndex("category");
+
+        // Check if the index is valid
+        if (categoryIndex == -1) {
+            cursor.close();
+            db.close();
+            return categories; // Return an empty list or handle the error appropriately
+        }
+
+        if (cursor.moveToFirst()) {
+            do {
+                String category = cursor.getString(categoryIndex);
+                categories.add(category);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return categories;
+    }
+
+    public List<Recipe> getRecipes() {
+        List<Recipe> recipes = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM Recipe", null);
+
+        // Get column indices
+        int idIndex = cursor.getColumnIndex("id");
+        int userIdIndex = cursor.getColumnIndex("user_id");
+        int titleIndex = cursor.getColumnIndex("title");
+        int descriptionIndex = cursor.getColumnIndex("description");
+        int instructionsIndex = cursor.getColumnIndex("instructions");
+
+        // Check if any of the column indices are -1
+        if (idIndex == -1 || userIdIndex == -1 || titleIndex == -1 || descriptionIndex == -1 || instructionsIndex == -1) {
+            cursor.close();
+            db.close();
+            return recipes; // Return empty list or handle error appropriately
+        }
+
+        if (cursor.moveToFirst()) {
+            do {
+                int id = cursor.getInt(idIndex);
+                int userId = cursor.getInt(userIdIndex);
+                String title = cursor.getString(titleIndex);
+                String description = cursor.getString(descriptionIndex);
+                String instructions = cursor.getString(instructionsIndex);
+                recipes.add(new Recipe(id, userId, title, description, instructions));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return recipes;
+    }
 
 
 

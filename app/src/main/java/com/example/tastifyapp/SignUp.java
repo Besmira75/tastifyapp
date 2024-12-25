@@ -9,6 +9,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.tastifyapp.data.DB;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -17,7 +19,7 @@ import java.util.regex.Pattern;
 public class SignUp extends AppCompatActivity {
 
     private EditText nameField, emailField, passwordField, confirmPasswordField;
-    private DB DB;
+    private com.example.tastifyapp.data.DB DB;
     private Button signUpButton;
 
     @Override

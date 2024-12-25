@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">tastifyapp</string>
+    <string name="tastifyWelcome">Welcome to Tastify</string>
+    <string name="welcomeText">Where every recipe tells a story of flavor and passion.</string>
+    <string name="sign_in">Sign in</string>
+    <string name="menu_home">Home</string>
+    <string name="menu_favourites">Favourites</string>
+    <string name="diartmarajj_outlook_com">diartmarajj@outlook.com</string>
+    <string name="profile">Profile</string>
+    <string name="menu_button">Menu button</string>
 </resources>
