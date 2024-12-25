@@ -16,7 +16,7 @@ import java.security.SecureRandom;
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 7; // Incremented version for 2FA table
+    private static final int DATABASE_VERSION = 9; // Incremented version for database schema update
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -30,8 +30,9 @@ public class DB extends SQLiteOpenHelper {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "name TEXT NOT NULL, " +
                 "email TEXT NOT NULL UNIQUE, " +
-                "password TEXT NOT NULL, " +
-                "salt TEXT NOT NULL);");
+                "password TEXT NOT NULL);"
+//                "salt TEXT NOT NULL);"
+        );
 
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_username ON User (name);");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_email ON User (email);");
@@ -131,6 +132,35 @@ public class DB extends SQLiteOpenHelper {
                     "recipe_id INTEGER NOT NULL, " +
                     "image_url TEXT NOT NULL, " +
                     "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
+        }
+        if (oldVersion < 8) {
+            // Remove category_id from Ingredient table
+            db.execSQL("ALTER TABLE Ingredient RENAME TO Ingredient_old;");
+            db.execSQL("CREATE TABLE Ingredient (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "emri TEXT NOT NULL);");
+
+            // Add category_id to Recipe table
+            db.execSQL("ALTER TABLE Recipe ADD COLUMN category_id INTEGER;");
+
+            // Modify sasia column in RecipeIngredient table to TEXT
+            db.execSQL("ALTER TABLE RecipeIngredient RENAME TO RecipeIngredient_old;");
+            db.execSQL("CREATE TABLE RecipeIngredient (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "recipe_id INTEGER NOT NULL, " +
+                    "ingredient_id INTEGER NOT NULL, " +
+                    "sasia TEXT NOT NULL, " +
+                    "FOREIGN KEY (recipe_id) REFERENCES Recipe (id), " +
+                    "FOREIGN KEY (ingredient_id) REFERENCES Ingredient (id));");
+
+            // Drop the old tables since there's no data to preserve
+            db.execSQL("DROP TABLE Ingredient_old;");
+            db.execSQL("DROP TABLE RecipeIngredient_old;");
+        }
+
+        if (oldVersion < 9) {
+            // Add salt column to User table if it doesn't exist
+            db.execSQL("ALTER TABLE User ADD COLUMN salt TEXT;");
         }
     }
 

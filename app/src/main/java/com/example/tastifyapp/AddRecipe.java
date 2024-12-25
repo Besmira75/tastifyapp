@@ -101,8 +101,6 @@ public class AddRecipe extends AppCompatActivity {
         }
     }
 
-
-
     private void loadCategories() {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cursor = null;
@@ -168,16 +166,11 @@ public class AddRecipe extends AppCompatActivity {
 
         builder.setPositiveButton("Add", (dialog, which) -> {
             String ingredientName = etIngredientName.getText().toString().trim();
-            String quantityStr = etIngredientQuantity.getText().toString().trim();
+            String quantity = etIngredientQuantity.getText().toString().trim();
 
-            if (!ingredientName.isEmpty() && !quantityStr.isEmpty()) {
-                try {
-                    double quantity = Double.parseDouble(quantityStr);
-                    ingredients.add(new IngredientQuantity(ingredientName, quantity));
-                    addIngredientToView(ingredientName, quantity);
-                } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Invalid quantity value.", Toast.LENGTH_SHORT).show();
-                }
+            if (!ingredientName.isEmpty() && !quantity.isEmpty()) {
+                ingredients.add(new IngredientQuantity(ingredientName, quantity));
+                addIngredientToView(ingredientName, quantity);
             } else {
                 Toast.makeText(this, "Please enter both ingredient and quantity.", Toast.LENGTH_SHORT).show();
             }
@@ -187,7 +180,9 @@ public class AddRecipe extends AppCompatActivity {
         builder.show();
     }
 
-    private void addIngredientToView(String ingredientName, double quantity) {
+
+
+    private void addIngredientToView(String ingredientName, String quantity) {
         LinearLayout ingredientLayout = new LinearLayout(this);
         ingredientLayout.setOrientation(LinearLayout.HORIZONTAL);
         ingredientLayout.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -198,12 +193,13 @@ public class AddRecipe extends AppCompatActivity {
         ingredientLayout.addView(etIngredientName);
 
         EditText etIngredientQuantity = new EditText(this);
-        etIngredientQuantity.setText(String.valueOf(quantity));
+        etIngredientQuantity.setText(quantity); // Directly set the string
         etIngredientQuantity.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         ingredientLayout.addView(etIngredientQuantity);
 
         ingredientsContainer.addView(ingredientLayout);
     }
+
 
     private void saveRecipe() {
         String title = ((EditText) findViewById(R.id.et_recipe_title)).getText().toString().trim();
@@ -222,7 +218,7 @@ public class AddRecipe extends AppCompatActivity {
             return;
         }
 
-        if (addRecipe(1, title, description, instructions, ingredients)) {
+        if (addRecipe(1, title, description, instructions, categoryId, ingredients)) {                              // ME BO DINAMIKISHT USER ID NE BAZE TE CILIT USER ESHTE LOG-IN !!!!!
             Toast.makeText(this, "Recipe saved successfully!", Toast.LENGTH_SHORT).show();
             finish();
         } else {
@@ -230,7 +226,7 @@ public class AddRecipe extends AppCompatActivity {
         }
     }
 
-    public boolean addRecipe(int userId, String title, String description, String instructions, List<IngredientQuantity> ingredients) {
+    public boolean addRecipe(int userId, String title, String description, String instructions, int categoryId, List<IngredientQuantity> ingredients) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
 
@@ -242,49 +238,31 @@ public class AddRecipe extends AppCompatActivity {
             recipeValues.put("description", description);
             recipeValues.put("instructions", instructions);
 
+            // Get the selected category ID from the spinner
+            int selectedCategoryIndex = spinnerCategory.getSelectedItemPosition();
+            if (selectedCategoryIndex < 0 || selectedCategoryIndex >= categoryIdList.size()) {
+                throw new Exception("Invalid category selected");
+            }
+            categoryId = categoryIdList.get(selectedCategoryIndex);
+            recipeValues.put("category_id", categoryId);
+
             long recipeId = db.insert("Recipe", null, recipeValues);
             if (recipeId == -1) throw new Exception("Failed to insert recipe");
 
             // Insert ingredients into the RecipeIngredient table
+            // Insert all ingredients directly
             for (IngredientQuantity iq : ingredients) {
-                // First, check if the ingredient already exists in the Ingredient table
-                Cursor cursor = db.query("Ingredient", new String[]{"id", "emri", "category_id"}, "emri = ?",
-                        new String[]{iq.getIngredientName()}, null, null, null);
-                int ingredientId = -1; // Default if not found
+                ContentValues ingredientValues = new ContentValues();
+                ingredientValues.put("emri", iq.getIngredientName());
+                long ingredientId = db.insert("Ingredient", null, ingredientValues);
+                if (ingredientId == -1) throw new Exception("Failed to insert ingredient");
 
-                if (cursor != null && cursor.moveToFirst()) {
-                    int idColumnIndex = cursor.getColumnIndex("id");
-                    int emriColumnIndex = cursor.getColumnIndex("emri");
-                    int categoryIdColumnIndex = cursor.getColumnIndex("category_id");
-
-                    // Ensure column index is valid
-                    if (idColumnIndex >= 0 && emriColumnIndex >= 0 && categoryIdColumnIndex >= 0) {
-                        ingredientId = cursor.getInt(idColumnIndex); // Get the ingredient ID
-                    }
-
-                    cursor.close();
-                } else {
-                    // If the ingredient doesn't exist, insert it into the Ingredient table
-                    ContentValues ingredientValues = new ContentValues();
-                    ingredientValues.put("emri", iq.getIngredientName()); // Using 'emri' for name
-
-                    // Set a default category_id if none is provided (or use some other logic to get a category ID)
-                    ingredientValues.put("category_id", 1); // Assuming category_id '1' is a default category
-                    long result = db.insert("Ingredient", null, ingredientValues);
-                    if (result == -1) throw new Exception("Failed to insert ingredient");
-
-                    // Get the newly inserted ingredient_id
-                    ingredientId = (int) result;
-                }
-
-                // Now insert into RecipeIngredient table with the obtained ingredient_id
                 ContentValues recipeIngredientValues = new ContentValues();
                 recipeIngredientValues.put("recipe_id", recipeId);
-                recipeIngredientValues.put("ingredient_id", ingredientId); // Use ingredient_id here
-                recipeIngredientValues.put("sasia", iq.getQuantity()); // Insert the quantity (sasia)
-
-                long result = db.insert("RecipeIngredient", null, recipeIngredientValues);
-                if (result == -1) throw new Exception("Failed to insert ingredient into RecipeIngredient");
+                recipeIngredientValues.put("ingredient_id", ingredientId);
+                recipeIngredientValues.put("sasia", iq.getQuantity()); // Quantity as String
+                long recipeIngredientResult = db.insert("RecipeIngredient", null, recipeIngredientValues);
+                if (recipeIngredientResult == -1) throw new Exception("Failed to link ingredient to recipe");
             }
 
             // Insert the image URL into the Image table (if an image was selected)
@@ -310,12 +288,11 @@ public class AddRecipe extends AppCompatActivity {
 
 
 
-
     public static class IngredientQuantity {
         private final String ingredientName;
-        private final double quantity;
+        private final String quantity;
 
-        public IngredientQuantity(String ingredientName, double quantity) {
+        public IngredientQuantity(String ingredientName, String quantity) {
             this.ingredientName = ingredientName;
             this.quantity = quantity;
         }
@@ -324,7 +301,7 @@ public class AddRecipe extends AppCompatActivity {
             return ingredientName;
         }
 
-        public double getQuantity() {
+        public String getQuantity() {
             return quantity;
         }
     }
