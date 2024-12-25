@@ -16,7 +16,7 @@ import java.security.SecureRandom;
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 6; // Incremented version for 2FA table
+    private static final int DATABASE_VERSION = 7; // Incremented version for 2FA table
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -33,6 +33,9 @@ public class DB extends SQLiteOpenHelper {
                 "password TEXT NOT NULL, " +
                 "salt TEXT NOT NULL);");
 
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_username ON User (name);");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_email ON User (email);");
+
         // 2FA Table
         db.execSQL("CREATE TABLE IF NOT EXISTS TwoFactorAuth (" +
                 "email TEXT PRIMARY KEY, " +
@@ -42,7 +45,47 @@ public class DB extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE IF NOT EXISTS PasswordReset (" +
                 "email TEXT PRIMARY KEY, " +
                 "reset_code TEXT NOT NULL);");
+// Recipe Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS Recipe (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "user_id INTEGER NOT NULL, " +
+                "title TEXT NOT NULL, " +
+                "description TEXT NOT NULL, " +
+                "instructions TEXT NOT NULL, " +
+                "FOREIGN KEY (user_id) REFERENCES User (id));");
+
+        // RecipeIngredient Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS RecipeIngredient (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "recipe_id INTEGER NOT NULL, " +
+                "ingredient_id INTEGER NOT NULL, " +
+                "sasia REAL NOT NULL, " +
+                "FOREIGN KEY (recipe_id) REFERENCES Recipe (id), " +
+                "FOREIGN KEY (ingredient_id) REFERENCES Ingredient (id));");
+
+        // Ingredient Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS Ingredient (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "emri TEXT NOT NULL, " +
+                "category_id INTEGER NOT NULL, " +
+                "FOREIGN KEY (category_id) REFERENCES Category (id));");
+
+        // Category Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS Category (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "category TEXT NOT NULL UNIQUE);");
+
+        // Image Table
+        db.execSQL("CREATE TABLE IF NOT EXISTS Image (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "recipe_id INTEGER NOT NULL, " +
+                "image_url TEXT NOT NULL, " +
+                "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
+
+        db.execSQL("INSERT INTO Category (category) VALUES ('Breakfast'), ('Lunch'), ('Dinner'), ('Dessert');");
+
     }
+
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
@@ -55,6 +98,39 @@ public class DB extends SQLiteOpenHelper {
             db.execSQL("CREATE TABLE IF NOT EXISTS PasswordReset (" +
                     "email TEXT PRIMARY KEY, " +
                     "reset_code TEXT NOT NULL);");
+        }
+        if (oldVersion < 7) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS Recipe (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "user_id INTEGER NOT NULL, " +
+                    "title TEXT NOT NULL, " +
+                    "description TEXT NOT NULL, " +
+                    "instructions TEXT NOT NULL, " +
+                    "FOREIGN KEY (user_id) REFERENCES User (id));");
+
+            db.execSQL("CREATE TABLE IF NOT EXISTS RecipeIngredient (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "recipe_id INTEGER NOT NULL, " +
+                    "ingredient_id INTEGER NOT NULL, " +
+                    "sasia REAL NOT NULL, " +
+                    "FOREIGN KEY (recipe_id) REFERENCES Recipe (id), " +
+                    "FOREIGN KEY (ingredient_id) REFERENCES Ingredient (id));");
+
+            db.execSQL("CREATE TABLE IF NOT EXISTS Ingredient (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "emri TEXT NOT NULL, " +
+                    "category_id INTEGER NOT NULL, " +
+                    "FOREIGN KEY (category_id) REFERENCES Category (id));");
+
+            db.execSQL("CREATE TABLE IF NOT EXISTS Category (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "category TEXT NOT NULL UNIQUE);");
+
+            db.execSQL("CREATE TABLE IF NOT EXISTS Image (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "recipe_id INTEGER NOT NULL, " +
+                    "image_url TEXT NOT NULL, " +
+                    "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
         }
     }
 
