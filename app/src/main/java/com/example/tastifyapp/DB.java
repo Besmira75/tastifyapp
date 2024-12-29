@@ -12,11 +12,13 @@ import androidx.annotation.Nullable;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 9; // Incremented version for database schema update
+    private static final int DATABASE_VERSION = 10; // Incremented version for database schema update
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -83,7 +85,8 @@ public class DB extends SQLiteOpenHelper {
                 "image_url TEXT NOT NULL, " +
                 "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
 
-        db.execSQL("INSERT INTO Category (category) VALUES ('Breakfast'), ('Lunch'), ('Dinner'), ('Dessert');");
+
+
 
     }
 
@@ -127,6 +130,8 @@ public class DB extends SQLiteOpenHelper {
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "category TEXT NOT NULL UNIQUE);");
 
+
+
             db.execSQL("CREATE TABLE IF NOT EXISTS Image (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "recipe_id INTEGER NOT NULL, " +
@@ -162,6 +167,12 @@ public class DB extends SQLiteOpenHelper {
             // Add salt column to User table if it doesn't exist
             db.execSQL("ALTER TABLE User ADD COLUMN salt TEXT;");
         }
+        if(oldVersion < 10) {
+            insertCategory(db, "Breakfast");
+            insertCategory(db, "Lunch");
+            insertCategory(db, "Dinner");
+            insertCategory(db, "Dessert");
+        }
     }
 
     // Generate a random salt
@@ -170,6 +181,30 @@ public class DB extends SQLiteOpenHelper {
         byte[] saltBytes = new byte[16];
         secureRandom.nextBytes(saltBytes);
         return Base64.encodeToString(saltBytes, Base64.NO_WRAP);
+    }
+
+    private void insertCategory(SQLiteDatabase db, String category) {
+        ContentValues values = new ContentValues();
+        values.put("category", category);
+        db.insert("Category", null, values);
+    }
+
+    public boolean insertCategory(String category) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.query("Category", new String[]{"id"}, "category = ?", new String[]{category}, null, null, null);
+        boolean exists = cursor.moveToFirst();
+        cursor.close();
+
+        if (!exists) {
+            ContentValues values = new ContentValues();
+            values.put("category", category);
+            long result = db.insert("Category", null, values);
+            db.close();
+            return result != -1;
+        }
+
+        db.close();
+        return false;
     }
 
     // Hash the password with the salt
@@ -203,6 +238,21 @@ public class DB extends SQLiteOpenHelper {
         return result != -1;
     }
 
+    // Inside DB.java
+
+    public int getUserId(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT id FROM User WHERE email = ?", new String[]{email});
+        int userId = -1;
+        if (cursor.moveToFirst()) {
+            userId = cursor.getInt(0);
+        }
+        cursor.close();
+        db.close();
+        return userId;
+    }
+
+
     // Validate user credentials
     public boolean validateUser(String email, String password) {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -222,6 +272,121 @@ public class DB extends SQLiteOpenHelper {
         db.close();
         return false;
     }
+
+    public List<CategoryModel> getAllCategoriesFull() {
+        List<CategoryModel> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT id, category FROM Category", null);
+        if (cursor.moveToFirst()) {
+            do {
+                int catId = cursor.getInt(0);
+                String catName = cursor.getString(1);
+                list.add(new CategoryModel(catId, catName));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    public List<RecipeModel> getAllRecipes() {
+        List<RecipeModel> recipeList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, Image.image_url " +
+                "FROM Recipe LEFT JOIN Image ON Recipe.id = Image.recipe_id";
+
+        Cursor cursor = db.rawQuery(query, null);
+        if (cursor.moveToFirst()) {
+            do {
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                int uid = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+
+                RecipeModel recipe = new RecipeModel(id, uid, title, description, instructions, categoryId, imageUrl);
+                recipeList.add(recipe);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+
+        return recipeList;
+    }
+
+    public List<RecipeModel> getRecipesByCategoryId(int catId) {
+        List<RecipeModel> recipes = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        // SQL query to join Recipe and Image tables
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, Image.image_url " +
+                "FROM Recipe LEFT JOIN Image ON Recipe.id = Image.recipe_id " +
+                "WHERE Recipe.category_id = ?";
+
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(catId)});
+
+        if (cursor.moveToFirst()) {
+            do {
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+
+                // Create a new RecipeModel object with all fields
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl);
+                recipes.add(recipe);
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return recipes;
+    }
+
+
+    // Inside DB.java
+
+    // Inside DB.java
+
+    public List<RecipeModel> getRecipesByUserId(int userId) {
+        List<RecipeModel> recipes = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, Image.image_url " +
+                "FROM Recipe LEFT JOIN Image ON Recipe.id = Image.recipe_id " +
+                "WHERE Recipe.user_id = ?";
+
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(userId)});
+
+        if (cursor.moveToFirst()) {
+            do {
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                int uid = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+
+                RecipeModel recipe = new RecipeModel(id, uid, title, description, instructions, categoryId, imageUrl);
+                recipes.add(recipe);
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+
+        return recipes;
+    }
+
+
+
 
     // Store the 2FA code
     public boolean storeTwoFACode(String email, String code) {
@@ -249,6 +414,14 @@ public class DB extends SQLiteOpenHelper {
         db.close();
         return null;
     }
+
+    public boolean removeTwoFACode(String email) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rowsAffected = db.delete("TwoFactorAuth", "email = ?", new String[]{email});
+        db.close();
+        return rowsAffected > 0;
+    }
+
     public boolean storeResetCode(String email, String resetCode) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();

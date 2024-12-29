@@ -22,11 +22,23 @@ public class SignIn extends AppCompatActivity {
     private EditText passwordEditText;
     private Button signInButton;
     private DB db;
+    private SessionManager sessionManager; // Declare SessionManager
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.sign_in);
+
+        // Initialize SessionManager
+        sessionManager = new SessionManager(this);
+
+        // If user is already logged in, redirect to MainActivity
+        if (sessionManager.isLoggedIn()) {
+            Intent intent = new Intent(SignIn.this, MainActivity.class);
+            startActivity(intent);
+            finish(); // Prevent returning to SignIn
+            return;
+        }
 
         // Initialize fields
         emailEditText = findViewById(R.id.editTextTextEmailAddress);
@@ -41,9 +53,12 @@ public class SignIn extends AppCompatActivity {
         signInButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
+                // Get input
                 String email = emailEditText.getText().toString().trim();
                 String password = passwordEditText.getText().toString().trim();
 
+                // Validate inputs
                 if (TextUtils.isEmpty(email) || TextUtils.isEmpty(password)) {
                     Toast.makeText(SignIn.this, "Email and Password are required", Toast.LENGTH_SHORT).show();
                     return;
@@ -54,12 +69,15 @@ public class SignIn extends AppCompatActivity {
                     return;
                 }
 
+                // Validate credentials
                 if (db.validateUser(email, password)) {
                     sendTwoFACode(email);
 
+                    // Navigate to TwoFactorActivity, passing the email
                     Intent intent = new Intent(SignIn.this, TwoFactorActivity.class);
                     intent.putExtra("email", email);
                     startActivity(intent);
+                    finish(); // Optional: Prevent returning to SignIn
                 } else {
                     Toast.makeText(SignIn.this, "Invalid Credentials", Toast.LENGTH_SHORT).show();
                 }
@@ -71,6 +89,7 @@ public class SignIn extends AppCompatActivity {
         forgotPassword.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 Intent intent = new Intent(SignIn.this, PasswordResetActivity.class);
                 startActivity(intent);
             }
@@ -81,6 +100,7 @@ public class SignIn extends AppCompatActivity {
         signUp.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
                 Intent intent = new Intent(SignIn.this, SignUp.class);
                 startActivity(intent);
             }

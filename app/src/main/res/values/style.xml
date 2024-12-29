@@ -1,11 +1,13 @@
 <resources>
     <!-- Custom Theme extending Theme.AppCompat -->
-    <style name="Theme.Tastifyapp" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- Customize your theme here -->
+    <style name="Theme.Tastifyapp" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Material-specific attributes -->
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryDark">@color/purple_700</item>
-        <item name="colorAccent">@color/teal_200</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@color/teal_200</item>
         <item name="android:textColor">@color/black</item>
         <item name="android:windowBackground">@color/white</item>
     </style>
+
 </resources>

@@ -1,6 +1,5 @@
 package com.example.tastifyapp;
 
-import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
@@ -8,8 +7,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -18,52 +17,60 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.util.ArrayList;
 import java.util.List;
 
-
-
 public class AddRecipe extends AppCompatActivity {
 
     private DB dbHelper;
+    private SessionManager sessionManager;
     private Spinner spinnerCategory;
     private LinearLayout ingredientsContainer;
-    private Button btnAddIngredient, btnSaveRecipe;
+    private Button btnAddIngredient, btnSaveRecipe, btnSelectImage;
 
     private List<IngredientQuantity> ingredients = new ArrayList<>();
     private List<String> categoryList = new ArrayList<>();
     private List<Integer> categoryIdList = new ArrayList<>();
 
-    // // // // // // for image // // // // // // //
+    // For image
     private ImageView recipeImageView;
-    private Button btnSelectImage;
     private String selectedImageUri;
 
-    private Uri imageUri;
+    private static final int IMAGE_PICK_CODE = 100;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_recipe);
 
         dbHelper = new DB(this);
+        sessionManager = new SessionManager(this);
 
-        recipeImageView = findViewById(R.id.iv_recipe_image); // Correct the ID to match the XML
-// Replace with your ImageView's ID.
+        // Check if user is logged in
+        if (!sessionManager.isLoggedIn()) {
+            Toast.makeText(this, "Please sign in to add a recipe.", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, SignIn.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
 
-        recipeImageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openImagePicker();
-            }
-        });
-
-
+        // Initialize views
+        recipeImageView = findViewById(R.id.iv_recipe_image); // Ensure this ID matches your XML
         spinnerCategory = findViewById(R.id.spinner_category);
         ingredientsContainer = findViewById(R.id.ingredients_container);
         btnAddIngredient = findViewById(R.id.btn_add_ingredient);
         btnSaveRecipe = findViewById(R.id.btn_save_recipe);
+        btnSelectImage = findViewById(R.id.btn_select_image);
+
+        // Set up image picker via ImageView click
+        recipeImageView.setOnClickListener(v -> openImagePicker());
+
+        // Alternatively, set up image picker via button click
+        btnSelectImage.setOnClickListener(v -> openImagePicker());
 
         // Load categories from the database
         loadCategories();
@@ -73,31 +80,43 @@ public class AddRecipe extends AppCompatActivity {
 
         // Save Recipe Button Clicked
         btnSaveRecipe.setOnClickListener(v -> saveRecipe());
-
-
     }
 
     private void openImagePicker() {
+        // Check for runtime permissions if targeting API 23+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, IMAGE_PICK_CODE);
+                return;
+            }
+        }
+        // Launch the image picker
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
-        startActivityForResult(intent, 100); // 100 is the request code.
+        startActivityForResult(intent, IMAGE_PICK_CODE);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == IMAGE_PICK_CODE){
+            if(grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED){
+                // Permission granted, launch image picker
+                openImagePicker();
+            } else {
+                Toast.makeText(this, "Permission denied to read your External storage", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == 100 && resultCode == RESULT_OK) {
-            Uri imageUri = data.getData(); // Get the URI of the selected image
-            selectedImageUri = imageUri.toString(); // Store the URI (for later use, like saving to DB or displaying the image)
-
-            // Optionally, set the image to the ImageView
+        if(requestCode == IMAGE_PICK_CODE && resultCode == RESULT_OK && data != null){
+            Uri imageUri = data.getData();
+            selectedImageUri = imageUri.toString();
             recipeImageView.setImageURI(imageUri);
-
-            // Save image path with the rest of the recipe data
-            if (imageUri != null) {
-                String imagePath = imageUri.toString(); // Convert URI to string
-            }
         }
     }
 
@@ -106,48 +125,39 @@ public class AddRecipe extends AppCompatActivity {
         Cursor cursor = null;
 
         try {
-            cursor = db.rawQuery("SELECT * FROM Category", null);
+            cursor = db.rawQuery("SELECT id, category FROM Category", null);
 
             categoryList.clear();
             categoryIdList.clear();
 
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    String categoryName = cursor.getString(cursor.getColumnIndexOrThrow("category"));
+            if(cursor != null && cursor.moveToFirst()){
+                do{
                     int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                    String categoryName = cursor.getString(cursor.getColumnIndexOrThrow("category"));
                     categoryList.add(categoryName);
                     categoryIdList.add(categoryId);
-                } while (cursor.moveToNext());
+                }while(cursor.moveToNext());
             }
 
-            if (categoryList.isEmpty()) {
-                // If no categories are found in the database, notify the user
+            if(categoryList.isEmpty()){
                 categoryList.add("No categories available");
             }
-        } catch (Exception e) {
+        } catch(Exception e){
             e.printStackTrace();
-            Toast.makeText(this, "Failed to load categories: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Failed to load categories.", Toast.LENGTH_LONG).show();
             categoryList.add("Error loading categories");
         } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            if(cursor != null) cursor.close();
             db.close();
         }
 
-        // Update the spinner adapter
+        // Set up spinner adapter
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCategory.setAdapter(adapter);
-
-        // Log categories for debugging
-        for (int i = 0; i < categoryList.size(); i++) {
-            System.out.println("Category: " + categoryList.get(i) + ", ID: " + categoryIdList.get(i));
-        }
     }
 
-
-    private void showAddIngredientDialog() {
+    private void showAddIngredientDialog(){
         final EditText etIngredientName = new EditText(this);
         final EditText etIngredientQuantity = new EditText(this);
 
@@ -168,7 +178,7 @@ public class AddRecipe extends AppCompatActivity {
             String ingredientName = etIngredientName.getText().toString().trim();
             String quantity = etIngredientQuantity.getText().toString().trim();
 
-            if (!ingredientName.isEmpty() && !quantity.isEmpty()) {
+            if(!ingredientName.isEmpty() && !quantity.isEmpty()){
                 ingredients.add(new IngredientQuantity(ingredientName, quantity));
                 addIngredientToView(ingredientName, quantity);
             } else {
@@ -180,12 +190,13 @@ public class AddRecipe extends AppCompatActivity {
         builder.show();
     }
 
-
-
-    private void addIngredientToView(String ingredientName, String quantity) {
+    private void addIngredientToView(String ingredientName, String quantity){
         LinearLayout ingredientLayout = new LinearLayout(this);
         ingredientLayout.setOrientation(LinearLayout.HORIZONTAL);
-        ingredientLayout.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        ingredientLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
 
         EditText etIngredientName = new EditText(this);
         etIngredientName.setText(ingredientName);
@@ -193,32 +204,42 @@ public class AddRecipe extends AppCompatActivity {
         ingredientLayout.addView(etIngredientName);
 
         EditText etIngredientQuantity = new EditText(this);
-        etIngredientQuantity.setText(quantity); // Directly set the string
+        etIngredientQuantity.setText(quantity);
         etIngredientQuantity.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         ingredientLayout.addView(etIngredientQuantity);
 
         ingredientsContainer.addView(ingredientLayout);
     }
 
-
-    private void saveRecipe() {
+    private void saveRecipe(){
         String title = ((EditText) findViewById(R.id.et_recipe_title)).getText().toString().trim();
         String description = ((EditText) findViewById(R.id.et_recipe_description)).getText().toString().trim();
         String instructions = ((EditText) findViewById(R.id.et_recipe_instructions)).getText().toString().trim();
 
-        if (categoryIdList.isEmpty() || spinnerCategory.getSelectedItemPosition() < 0) {
+        if(categoryIdList.isEmpty() || spinnerCategory.getSelectedItemPosition() < 0){
             Toast.makeText(this, "Invalid category selection.", Toast.LENGTH_SHORT).show();
             return;
         }
 
         int categoryId = categoryIdList.get(spinnerCategory.getSelectedItemPosition());
 
-        if (title.isEmpty() || description.isEmpty() || instructions.isEmpty()) {
+        if(title.isEmpty() || description.isEmpty() || instructions.isEmpty()){
             Toast.makeText(this, "Please fill in all recipe details.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (addRecipe(1, title, description, instructions, categoryId, ingredients)) {                              // ME BO DINAMIKISHT USER ID NE BAZE TE CILIT USER ESHTE LOG-IN !!!!!
+        // Get the current user's ID from SessionManager
+        if(!sessionManager.isLoggedIn()){
+            Toast.makeText(this, "User not logged in.", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, SignIn.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
+
+        int userId = sessionManager.getUserId();
+
+        if(addRecipe(userId, title, description, instructions, categoryId, ingredients)){
             Toast.makeText(this, "Recipe saved successfully!", Toast.LENGTH_SHORT).show();
             finish();
         } else {
@@ -226,58 +247,62 @@ public class AddRecipe extends AppCompatActivity {
         }
     }
 
-    public boolean addRecipe(int userId, String title, String description, String instructions, int categoryId, List<IngredientQuantity> ingredients) {
+    public boolean addRecipe(int userId, String title, String description, String instructions, int categoryId, List<IngredientQuantity> ingredients){
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         db.beginTransaction();
 
-        try {
+        try{
             // Insert the recipe into the Recipe table
             ContentValues recipeValues = new ContentValues();
             recipeValues.put("user_id", userId);
             recipeValues.put("title", title);
             recipeValues.put("description", description);
             recipeValues.put("instructions", instructions);
-
-            // Get the selected category ID from the spinner
-            int selectedCategoryIndex = spinnerCategory.getSelectedItemPosition();
-            if (selectedCategoryIndex < 0 || selectedCategoryIndex >= categoryIdList.size()) {
-                throw new Exception("Invalid category selected");
-            }
-            categoryId = categoryIdList.get(selectedCategoryIndex);
             recipeValues.put("category_id", categoryId);
 
             long recipeId = db.insert("Recipe", null, recipeValues);
-            if (recipeId == -1) throw new Exception("Failed to insert recipe");
+            if(recipeId == -1) throw new Exception("Failed to insert recipe");
 
             // Insert ingredients into the RecipeIngredient table
-            // Insert all ingredients directly
-            for (IngredientQuantity iq : ingredients) {
-                ContentValues ingredientValues = new ContentValues();
-                ingredientValues.put("emri", iq.getIngredientName());
-                long ingredientId = db.insert("Ingredient", null, ingredientValues);
-                if (ingredientId == -1) throw new Exception("Failed to insert ingredient");
+            for(IngredientQuantity iq : ingredients){
+                // Check if ingredient already exists
+                Cursor cursor = db.query("Ingredient", new String[]{"id"}, "emri = ?", new String[]{iq.getIngredientName()}, null, null, null);
+                int ingredientId;
+                if(cursor.moveToFirst()){
+                    ingredientId = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                } else {
+                    // Insert new ingredient
+                    ContentValues ingredientValues = new ContentValues();
+                    ingredientValues.put("emri", iq.getIngredientName());
+                    ingredientValues.put("category_id", categoryId); // Ensure category_id is set if required
+                    long id = db.insert("Ingredient", null, ingredientValues);
+                    if(id == -1) throw new Exception("Failed to insert ingredient");
+                    ingredientId = (int) id;
+                }
+                cursor.close();
 
+                // Link ingredient to recipe
                 ContentValues recipeIngredientValues = new ContentValues();
                 recipeIngredientValues.put("recipe_id", recipeId);
                 recipeIngredientValues.put("ingredient_id", ingredientId);
                 recipeIngredientValues.put("sasia", iq.getQuantity()); // Quantity as String
-                long recipeIngredientResult = db.insert("RecipeIngredient", null, recipeIngredientValues);
-                if (recipeIngredientResult == -1) throw new Exception("Failed to link ingredient to recipe");
+                long result = db.insert("RecipeIngredient", null, recipeIngredientValues);
+                if(result == -1) throw new Exception("Failed to link ingredient to recipe");
             }
 
             // Insert the image URL into the Image table (if an image was selected)
-            if (selectedImageUri != null && !selectedImageUri.isEmpty()) {
+            if(selectedImageUri != null && !selectedImageUri.isEmpty()){
                 ContentValues imageValues = new ContentValues();
                 imageValues.put("recipe_id", recipeId);
                 imageValues.put("image_url", selectedImageUri);
 
                 long imageId = db.insert("Image", null, imageValues);
-                if (imageId == -1) throw new Exception("Failed to insert image into Image table");
+                if(imageId == -1) throw new Exception("Failed to insert image into Image table");
             }
 
             db.setTransactionSuccessful();
             return true;
-        } catch (Exception e) {
+        } catch(Exception e){
             e.printStackTrace();
             return false;
         } finally {
@@ -286,8 +311,7 @@ public class AddRecipe extends AppCompatActivity {
         }
     }
 
-
-
+    // IngredientQuantity Class
     public static class IngredientQuantity {
         private final String ingredientName;
         private final String quantity;
