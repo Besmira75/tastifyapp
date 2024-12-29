@@ -338,6 +338,8 @@ public class DB extends SQLiteOpenHelper {
                 int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
                 String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
 
+
+
                 // Create a new RecipeModel object with all fields
                 RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl);
                 recipes.add(recipe);
@@ -348,6 +350,7 @@ public class DB extends SQLiteOpenHelper {
         db.close();
         return recipes;
     }
+
 
 
     // Inside DB.java

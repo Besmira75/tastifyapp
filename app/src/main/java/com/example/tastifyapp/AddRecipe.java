@@ -1,13 +1,17 @@
 package com.example.tastifyapp;
 
+import android.Manifest;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -17,13 +21,22 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class AddRecipe extends AppCompatActivity {
+
+    private ActivityResultLauncher<Intent> imagePickerLauncher;
+
+    private static final int PERMISSION_REQUEST_CODE = 101;
 
     private DB dbHelper;
     private SessionManager sessionManager;
@@ -38,8 +51,6 @@ public class AddRecipe extends AppCompatActivity {
     // For image
     private ImageView recipeImageView;
     private String selectedImageUri;
-
-    private static final int IMAGE_PICK_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +77,30 @@ public class AddRecipe extends AppCompatActivity {
         btnSaveRecipe = findViewById(R.id.btn_save_recipe);
         btnSelectImage = findViewById(R.id.btn_select_image);
 
+        // Initialize the image picker launcher
+        imagePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Uri imageUri = result.getData().getData();
+                        if (imageUri != null) {
+                            // You should take persistable URI permission explicitly to access the content URI across device reboots
+                            getContentResolver().takePersistableUriPermission(
+                                    imageUri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            );
+
+                            selectedImageUri = imageUri.toString();
+                            recipeImageView.setImageURI(imageUri);
+                            Log.d("AddRecipe", "Selected Image URI: " + selectedImageUri);
+                        } else {
+                            Toast.makeText(this, "Failed to get image", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
+
+
         // Set up image picker via ImageView click
         recipeImageView.setOnClickListener(v -> openImagePicker());
 
@@ -83,27 +118,37 @@ public class AddRecipe extends AppCompatActivity {
     }
 
     private void openImagePicker() {
-        // Check for runtime permissions if targeting API 23+
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, IMAGE_PICK_CODE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // API 33+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, PERMISSION_REQUEST_CODE);
+                return;
+            }
+        } else { // Below API 33
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
                 return;
             }
         }
-        // Launch the image picker
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        intent.setType("image/*");
-        startActivityForResult(intent, IMAGE_PICK_CODE);
+        // Permission already granted, launch image picker
+        launchImagePicker();
     }
-
+    private void launchImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.setType("image/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        // Grant temporary read permission to the URI
+        intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        imagePickerLauncher.launch(intent);
+    }
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(requestCode == IMAGE_PICK_CODE){
-            if(grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED){
+        if(requestCode == PERMISSION_REQUEST_CODE){
+            if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
                 // Permission granted, launch image picker
-                openImagePicker();
+                launchImagePicker();
             } else {
+                // Permission denied, show a message to the user
                 Toast.makeText(this, "Permission denied to read your External storage", Toast.LENGTH_SHORT).show();
             }
         }
@@ -112,12 +157,7 @@ public class AddRecipe extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
-        if(requestCode == IMAGE_PICK_CODE && resultCode == RESULT_OK && data != null){
-            Uri imageUri = data.getData();
-            selectedImageUri = imageUri.toString();
-            recipeImageView.setImageURI(imageUri);
-        }
+        // Deprecated in favor of Activity Result APIs, but kept for compatibility
     }
 
     private void loadCategories() {
@@ -169,6 +209,7 @@ public class AddRecipe extends AppCompatActivity {
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(16, 16, 16, 16); // Add padding for better UI
         layout.addView(etIngredientName);
         layout.addView(etIngredientQuantity);
 
@@ -197,15 +238,18 @@ public class AddRecipe extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
+        ingredientLayout.setPadding(0, 8, 0, 8); // Add padding for better UI
 
         EditText etIngredientName = new EditText(this);
         etIngredientName.setText(ingredientName);
         etIngredientName.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        etIngredientName.setEnabled(false); // Make it read-only
         ingredientLayout.addView(etIngredientName);
 
         EditText etIngredientQuantity = new EditText(this);
         etIngredientQuantity.setText(quantity);
         etIngredientQuantity.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        etIngredientQuantity.setEnabled(false); // Make it read-only
         ingredientLayout.addView(etIngredientQuantity);
 
         ingredientsContainer.addView(ingredientLayout);

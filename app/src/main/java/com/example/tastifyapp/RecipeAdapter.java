@@ -1,6 +1,7 @@
 package com.example.tastifyapp;
 
 import android.net.Uri;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,6 +38,9 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         // Set the title and description
         holder.tvRecipeTitle.setText(recipe.getTitle());
         holder.tvRecipeSubtitle.setText(recipe.getDescription());
+
+        // Log the image URI
+        Log.d("RecipeAdapter", "Loading image URI: " + recipe.getImageUrl());
 
         // Load the image using Glide
         if (recipe.getImageUrl() != null && !recipe.getImageUrl().isEmpty()) {
