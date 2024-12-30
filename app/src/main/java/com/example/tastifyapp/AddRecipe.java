@@ -204,8 +204,7 @@ public class AddRecipe extends AppCompatActivity {
             // Load ingredients
             List<IngredientQuantity> ingredients = dbHelper.getIngredientsByRecipeId(recipeId);
             for (IngredientQuantity iq : ingredients) {
-                addIngredientToView(iq.getIngredientName(), iq.getQuantity());
-                this.ingredients.add(iq);
+                addIngredientToView(iq.getIngredientName(), iq.getQuantity(), iq.getId());
             }
 
             // Load image
@@ -345,63 +344,80 @@ public class AddRecipe extends AppCompatActivity {
         spinnerCategory.setAdapter(adapter);
     }
 
-    private void showAddIngredientDialog(){
+    private void showAddIngredientDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
         final EditText etIngredientName = new EditText(this);
         final EditText etIngredientQuantity = new EditText(this);
-
         etIngredientName.setHint("Ingredient Name");
         etIngredientQuantity.setHint("Quantity");
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Add New Ingredient");
-
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(16, 16, 16, 16); // Add padding for better UI
         layout.addView(etIngredientName);
         layout.addView(etIngredientQuantity);
 
         builder.setView(layout);
-
         builder.setPositiveButton("Add", (dialog, which) -> {
             String ingredientName = etIngredientName.getText().toString().trim();
             String quantity = etIngredientQuantity.getText().toString().trim();
-
-            if(!ingredientName.isEmpty() && !quantity.isEmpty()){
-                ingredients.add(new IngredientQuantity(ingredientName, quantity));
-                addIngredientToView(ingredientName, quantity);
+            if (!ingredientName.isEmpty() && !quantity.isEmpty()) {
+                ingredients.add(new IngredientQuantity(-1, ingredientName, quantity)); // Use -1 as temporary ID
+                addIngredientToView(ingredientName, quantity, -1);
             } else {
                 Toast.makeText(this, "Please enter both ingredient and quantity.", Toast.LENGTH_SHORT).show();
             }
         });
-
         builder.setNegativeButton("Cancel", null);
         builder.show();
     }
 
-    private void addIngredientToView(String ingredientName, String quantity){
+    private void addIngredientToView(String ingredientName, String quantity, int id) {
+        // Create a new horizontal LinearLayout for each ingredient row
         LinearLayout ingredientLayout = new LinearLayout(this);
         ingredientLayout.setOrientation(LinearLayout.HORIZONTAL);
         ingredientLayout.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        ));
-        ingredientLayout.setPadding(0, 8, 0, 8); // Add padding for better UI
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        // EditText for ingredient name
         EditText etIngredientName = new EditText(this);
         etIngredientName.setText(ingredientName);
-        etIngredientName.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        etIngredientName.setEnabled(false); // Make it read-only
-        ingredientLayout.addView(etIngredientName);
+        LinearLayout.LayoutParams paramsName = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 3);
+        etIngredientName.setLayoutParams(paramsName);
+        etIngredientName.setEnabled(false); // Make it read-only if necessary
 
+        // EditText for ingredient quantity
         EditText etIngredientQuantity = new EditText(this);
         etIngredientQuantity.setText(quantity);
-        etIngredientQuantity.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        etIngredientQuantity.setEnabled(false); // Make it read-only
-        ingredientLayout.addView(etIngredientQuantity);
+        LinearLayout.LayoutParams paramsQuantity = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        etIngredientQuantity.setLayoutParams(paramsQuantity);
+        etIngredientQuantity.setEnabled(false); // Make it read-only if necessary
 
+        // Button to remove ingredient
+        Button removeButton = new Button(this);
+        removeButton.setText("Remove");
+        LinearLayout.LayoutParams paramsButton = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        removeButton.setLayoutParams(paramsButton);
+        removeButton.setOnClickListener(v -> {
+            // Remove the ingredient view from the container
+            ingredientsContainer.removeView(ingredientLayout);
+            // Optionally, delete from database if needed
+            if (id != -1) {
+                dbHelper.deleteIngredientById(id);
+            }
+            ingredients.removeIf(ingredient -> ingredient.getId() == id);
+        });
+
+        // Add views to the layout
+        ingredientLayout.addView(etIngredientName);
+        ingredientLayout.addView(etIngredientQuantity);
+        ingredientLayout.addView(removeButton);
+
+        // Add the layout to the ingredients container
         ingredientsContainer.addView(ingredientLayout);
     }
+
+
 
     private void saveRecipe(){
         String title = ((EditText) findViewById(R.id.et_recipe_title)).getText().toString().trim();
@@ -627,12 +643,18 @@ public class AddRecipe extends AppCompatActivity {
 
     // IngredientQuantity Class
     public static class IngredientQuantity {
+        private final int id;
         private final String ingredientName;
         private final String quantity;
 
-        public IngredientQuantity(String ingredientName, String quantity) {
+        public IngredientQuantity(int id, String ingredientName, String quantity) {
+            this.id = id;
             this.ingredientName = ingredientName;
             this.quantity = quantity;
+        }
+
+        public int getId() {
+            return id;
         }
 
         public String getIngredientName() {

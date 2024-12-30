@@ -221,6 +221,13 @@ public class DB extends SQLiteOpenHelper {
         }
     }
 
+    public boolean deleteIngredientById(int ingredientId) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int deletedRows = db.delete("RecipeIngredient", "id = ?", new String[]{String.valueOf(ingredientId)});
+        db.close();
+        return deletedRows > 0;
+    }
+
     // Insert a new user into the database
     public boolean insertUser(String name, String email, String password) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -398,19 +405,19 @@ public class DB extends SQLiteOpenHelper {
         return recipe;
     }
 
-    public List<AddRecipe.IngredientQuantity> getIngredientsByRecipeId(int recipeId){
+    public List<AddRecipe.IngredientQuantity> getIngredientsByRecipeId(int recipeId) {
         List<AddRecipe.IngredientQuantity> ingredients = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-        String query = "SELECT Ingredient.emri, RecipeIngredient.sasia " +
-                "FROM RecipeIngredient " +
+        String query = "SELECT Ingredient.id, Ingredient.emri, RecipeIngredient.sasia FROM RecipeIngredient " +
                 "JOIN Ingredient ON RecipeIngredient.ingredient_id = Ingredient.id " +
                 "WHERE RecipeIngredient.recipe_id = ?";
         Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
         if(cursor != null && cursor.moveToFirst()){
             do{
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
                 String name = cursor.getString(cursor.getColumnIndexOrThrow("emri"));
                 String quantity = cursor.getString(cursor.getColumnIndexOrThrow("sasia"));
-                ingredients.add(new AddRecipe.IngredientQuantity(name, quantity));
+                ingredients.add(new AddRecipe.IngredientQuantity(id, name, quantity));
             } while(cursor.moveToNext());
             cursor.close();
         }
