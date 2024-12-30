@@ -6,17 +6,20 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Base64;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 9; // Incremented version for database schema update
+    private static final int DATABASE_VERSION = 10; // Incremented version for database schema update
 
     // Constructor
     public DB(@Nullable Context context) {
@@ -83,7 +86,8 @@ public class DB extends SQLiteOpenHelper {
                 "image_url TEXT NOT NULL, " +
                 "FOREIGN KEY (recipe_id) REFERENCES Recipe (id));");
 
-        db.execSQL("INSERT INTO Category (category) VALUES ('Breakfast'), ('Lunch'), ('Dinner'), ('Dessert');");
+
+
 
     }
 
@@ -127,6 +131,8 @@ public class DB extends SQLiteOpenHelper {
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "category TEXT NOT NULL UNIQUE);");
 
+
+
             db.execSQL("CREATE TABLE IF NOT EXISTS Image (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "recipe_id INTEGER NOT NULL, " +
@@ -162,6 +168,12 @@ public class DB extends SQLiteOpenHelper {
             // Add salt column to User table if it doesn't exist
             db.execSQL("ALTER TABLE User ADD COLUMN salt TEXT;");
         }
+        if(oldVersion < 10) {
+            insertCategory(db, "Breakfast");
+            insertCategory(db, "Lunch");
+            insertCategory(db, "Dinner");
+            insertCategory(db, "Dessert");
+        }
     }
 
     // Generate a random salt
@@ -170,6 +182,30 @@ public class DB extends SQLiteOpenHelper {
         byte[] saltBytes = new byte[16];
         secureRandom.nextBytes(saltBytes);
         return Base64.encodeToString(saltBytes, Base64.NO_WRAP);
+    }
+
+    private void insertCategory(SQLiteDatabase db, String category) {
+        ContentValues values = new ContentValues();
+        values.put("category", category);
+        db.insert("Category", null, values);
+    }
+
+    public boolean insertCategory(String category) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        Cursor cursor = db.query("Category", new String[]{"id"}, "category = ?", new String[]{category}, null, null, null);
+        boolean exists = cursor.moveToFirst();
+        cursor.close();
+
+        if (!exists) {
+            ContentValues values = new ContentValues();
+            values.put("category", category);
+            long result = db.insert("Category", null, values);
+            db.close();
+            return result != -1;
+        }
+
+        db.close();
+        return false;
     }
 
     // Hash the password with the salt
@@ -203,6 +239,36 @@ public class DB extends SQLiteOpenHelper {
         return result != -1;
     }
 
+    // Inside DB.java
+
+    public int getUserId(String email) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT id FROM User WHERE email = ?", new String[]{email});
+        int userId = -1;
+        if (cursor.moveToFirst()) {
+            userId = cursor.getInt(0);
+        }
+        cursor.close();
+        db.close();
+        return userId;
+    }
+
+    public UserModel getUserById(int userId){
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query("User", new String[]{"id", "name", "email"}, "id = ?", new String[]{String.valueOf(userId)}, null, null, null);
+        UserModel user = null;
+        if(cursor != null && cursor.moveToFirst()){
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+            String email = cursor.getString(cursor.getColumnIndexOrThrow("email"));
+            user = new UserModel(id, name, email);
+            cursor.close();
+        }
+        db.close();
+        return user;
+    }
+
+
     // Validate user credentials
     public boolean validateUser(String email, String password) {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -222,6 +288,232 @@ public class DB extends SQLiteOpenHelper {
         db.close();
         return false;
     }
+
+    public List<CategoryModel> getAllCategoriesFull() {
+        List<CategoryModel> list = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT id, category FROM Category", null);
+        if (cursor.moveToFirst()) {
+            do {
+                int catId = cursor.getInt(0);
+                String catName = cursor.getString(1);
+                list.add(new CategoryModel(catId, catName));
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    public List<RecipeModel> getAllRecipes(){
+        List<RecipeModel> recipeList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id";
+        Cursor cursor = db.rawQuery(query, null);
+        if(cursor != null && cursor.moveToFirst()){
+            do{
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+                // Fetch image URL
+                String imageUrl = getImageUrlByRecipeId(id);
+
+                // Initialize RecipeModel with name
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+                recipeList.add(recipe);
+            } while(cursor.moveToNext());
+            cursor.close();
+        }
+        db.close();
+        return recipeList;
+    }
+
+    public List<RecipeModel> getRecipesByCategoryId(int categoryId){
+        List<RecipeModel> recipeList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.category_id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(categoryId)});
+        if(cursor != null && cursor.moveToFirst()){
+            do{
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+                // Fetch image URL
+                String imageUrl = getImageUrlByRecipeId(id);
+
+                // Initialize RecipeModel with username
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+                recipeList.add(recipe);
+            } while(cursor.moveToNext());
+            cursor.close();
+        }
+        db.close();
+        return recipeList;
+    }
+
+
+
+    // Inside DB.java
+
+    // Inside DB.java
+    public RecipeModel getRecipeById(int recipeId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
+        RecipeModel recipe = null;
+        if(cursor != null && cursor.moveToFirst()){
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+            String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+            String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+            String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+            int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+            // Fetch image URL from Image table
+            String imageUrl = getImageUrlByRecipeId(recipeId);
+
+            // Initialize RecipeModel with all details
+            recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+            cursor.close();
+        }
+        db.close();
+        return recipe;
+    }
+
+    public List<AddRecipe.IngredientQuantity> getIngredientsByRecipeId(int recipeId){
+        List<AddRecipe.IngredientQuantity> ingredients = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Ingredient.emri, RecipeIngredient.sasia " +
+                "FROM RecipeIngredient " +
+                "JOIN Ingredient ON RecipeIngredient.ingredient_id = Ingredient.id " +
+                "WHERE RecipeIngredient.recipe_id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
+        if(cursor != null && cursor.moveToFirst()){
+            do{
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("emri"));
+                String quantity = cursor.getString(cursor.getColumnIndexOrThrow("sasia"));
+                ingredients.add(new AddRecipe.IngredientQuantity(name, quantity));
+            } while(cursor.moveToNext());
+            cursor.close();
+        }
+        db.close();
+        return ingredients;
+    }
+
+    public String getImageUrlByRecipeId(int recipeId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String imageUrl = null;
+        Cursor cursor = db.query("Image", new String[]{"image_url"}, "recipe_id = ?", new String[]{String.valueOf(recipeId)}, null, null, null);
+        if(cursor != null && cursor.moveToFirst()){
+            imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+            cursor.close();
+        }
+        db.close();
+        return imageUrl;
+    }
+    public RecipeModel getCompleteRecipeById(int recipeId){
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
+        RecipeModel recipe = null;
+        if(cursor != null && cursor.moveToFirst()){
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+            String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+            String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+            String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+            int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+            // Fetch image URL
+            String imageUrl = getImageUrlByRecipeId(recipeId);
+
+            // Initialize RecipeModel with username
+            recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+            cursor.close();
+        }
+        db.close();
+        return recipe;
+    }
+
+    public boolean deleteRecipe(int recipeId){
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.beginTransaction();
+        try{
+            // Delete from Image table
+            db.delete("Image", "recipe_id = ?", new String[]{String.valueOf(recipeId)});
+            // Delete from RecipeIngredient table
+            db.delete("RecipeIngredient", "recipe_id = ?", new String[]{String.valueOf(recipeId)});
+            // Delete from Recipe table
+            int rows = db.delete("Recipe", "id = ?", new String[]{String.valueOf(recipeId)});
+            if(rows > 0){
+                db.setTransactionSuccessful();
+                return true;
+            } else {
+                return false;
+            }
+        } catch(Exception e){
+            Log.e("DB", "Error deleting recipe: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        } finally {
+            db.endTransaction();
+            db.close();
+        }
+    }
+    public List<RecipeModel> getRecipesByUserId(int userId){
+        List<RecipeModel> recipeList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.user_id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(userId)});
+        if(cursor != null && cursor.moveToFirst()){
+            do{
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+                // Fetch image URL
+                String imageUrl = getImageUrlByRecipeId(id);
+
+                // Initialize RecipeModel with username
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+                recipeList.add(recipe);
+            } while(cursor.moveToNext());
+            cursor.close();
+        }
+        db.close();
+        return recipeList;
+    }
+
+
+
 
     // Store the 2FA code
     public boolean storeTwoFACode(String email, String code) {
@@ -249,6 +541,14 @@ public class DB extends SQLiteOpenHelper {
         db.close();
         return null;
     }
+
+    public boolean removeTwoFACode(String email) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rowsAffected = db.delete("TwoFactorAuth", "email = ?", new String[]{email});
+        db.close();
+        return rowsAffected > 0;
+    }
+
     public boolean storeResetCode(String email, String resetCode) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();

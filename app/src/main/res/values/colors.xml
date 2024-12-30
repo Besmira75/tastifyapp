@@ -8,5 +8,12 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="primary">#6200EE</color>
+    <color name="gray_light">#d3d3d3</color>
+    <color name="gray_dark">#898989</color>
+    <color name="colorPrimaryText">#333333</color>
+    <color name="colorSecondaryText">#666666</color>
+    <color name="colorPrimary">#FF9800</color> <!-- Example Primary Color -->
+    <color name="colorSecondary">#3F51B5</color> <!-- Example Secondary Color -->
+    <color name="red">#F44336</color>
 
 </resources>

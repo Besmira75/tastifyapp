@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scrollView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/white"
+    android:padding="16dp"
+    tools:context=".RecipeDetailsActivity">
+
+    <LinearLayout
+        android:id="@+id/linearLayoutDetails"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Recipe Image with elevation and rounded corners -->
+        <ImageView
+            android:id="@+id/iv_recipe_image_details"
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="@string/recipe_image"
+            android:background="@drawable/image_placeholder_background"
+            android:src="@drawable/ic_placeholder"
+            android:elevation="4dp"
+            android:clipToOutline="true" />
+
+        <!-- Recipe Title -->
+        <TextView
+            android:id="@+id/tv_recipe_title_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Recipe Title"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_marginTop="16dp" />
+
+        <!-- Recipe Category -->
+        <TextView
+            android:id="@+id/tv_recipe_category_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Category: Breakfast"
+            android:textSize="16sp"
+            android:textColor="@color/gray_dark"
+            android:layout_marginTop="8dp" />
+
+        <!-- Creator Name -->
+        <TextView
+            android:id="@+id/tv_recipe_creator_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="by Name"
+            android:textSize="14sp"
+            android:textColor="@color/gray_light"
+            android:layout_marginTop="4dp" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gray_light"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Recipe Description -->
+        <TextView
+            android:id="@+id/tv_recipe_description_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Description"
+            android:textSize="16sp"
+            android:textColor="@color/black" />
+
+        <!-- Recipe Instructions -->
+        <TextView
+            android:id="@+id/tv_recipe_instructions_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Instructions"
+            android:textSize="16sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="12dp" />
+
+        <!-- Ingredients Header -->
+        <TextView
+            android:id="@+id/tv_ingredients_header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ingredients:"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_marginTop="16dp" />
+
+        <!-- Ingredients List -->
+        <LinearLayout
+            android:id="@+id/ingredients_container_details"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" />
+
+        <!-- Edit Recipe Button (Visible Only to Owners) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_edit_recipe_details"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Edit Recipe"
+            app:backgroundTint="@color/colorPrimary"
+            android:textColor="@color/white"
+            android:layout_marginTop="24dp"
+            android:visibility="gone" /> <!-- Set to visible if editing is allowed -->
+
+    </LinearLayout>
+</ScrollView>
