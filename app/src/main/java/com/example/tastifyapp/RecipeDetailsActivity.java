@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -70,6 +71,9 @@ public class RecipeDetailsActivity extends AppCompatActivity {
             Toast.makeText(this, "No Recipe ID provided.", Toast.LENGTH_SHORT).show();
             finish();
         }
+        // Handle back button click
+        ImageButton btnBack = findViewById(R.id.btnBack);
+        btnBack.setOnClickListener(v -> onBackPressed()); // Go back to the previous screen
 
         // Handle Edit Button Click
         btnEditRecipeDetails.setOnClickListener(new View.OnClickListener() {
@@ -81,6 +85,7 @@ public class RecipeDetailsActivity extends AppCompatActivity {
                 startActivity(editIntent);
             }
         });
+
     }
 
     @Override

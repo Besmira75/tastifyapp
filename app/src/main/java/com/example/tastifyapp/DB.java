@@ -19,7 +19,7 @@ import java.util.List;
 public class DB extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "recipes.db";
-    private static final int DATABASE_VERSION = 10; // Incremented version for database schema update
+    private static final int DATABASE_VERSION = 12; // Incremented version for database schema update
 
     // Constructor
     public DB(@Nullable Context context) {

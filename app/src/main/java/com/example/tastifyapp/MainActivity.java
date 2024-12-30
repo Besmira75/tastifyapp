@@ -124,8 +124,9 @@ public class MainActivity extends AppCompatActivity
                     .replace(R.id.content_frame, new MyRecipesFragment())
                     .commit();
         } else if (id == R.id.nav_profile) {
-            Toast.makeText(this, "Profile clicked", Toast.LENGTH_SHORT).show();
-            // You can implement ProfileFragment or Activity here
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.content_frame, new ProfileFragment())
+                    .commit();
         }
 
         // Close the drawer
