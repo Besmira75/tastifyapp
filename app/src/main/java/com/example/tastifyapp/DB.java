@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Base64;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -252,6 +253,21 @@ public class DB extends SQLiteOpenHelper {
         return userId;
     }
 
+    public UserModel getUserById(int userId){
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query("User", new String[]{"id", "name", "email"}, "id = ?", new String[]{String.valueOf(userId)}, null, null, null);
+        UserModel user = null;
+        if(cursor != null && cursor.moveToFirst()){
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+            String email = cursor.getString(cursor.getColumnIndexOrThrow("email"));
+            user = new UserModel(id, name, email);
+            cursor.close();
+        }
+        db.close();
+        return user;
+    }
+
 
     // Validate user credentials
     public boolean validateUser(String email, String password) {
@@ -289,66 +305,64 @@ public class DB extends SQLiteOpenHelper {
         return list;
     }
 
-    public List<RecipeModel> getAllRecipes() {
+    public List<RecipeModel> getAllRecipes(){
         List<RecipeModel> recipeList = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
-
-        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, Image.image_url " +
-                "FROM Recipe LEFT JOIN Image ON Recipe.id = Image.recipe_id";
-
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id";
         Cursor cursor = db.rawQuery(query, null);
-        if (cursor.moveToFirst()) {
-            do {
-                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-                int uid = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
-                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
-                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
-                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
-                int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
-                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
-
-                RecipeModel recipe = new RecipeModel(id, uid, title, description, instructions, categoryId, imageUrl);
-                recipeList.add(recipe);
-            } while (cursor.moveToNext());
-        }
-        cursor.close();
-        db.close();
-
-        return recipeList;
-    }
-
-    public List<RecipeModel> getRecipesByCategoryId(int catId) {
-        List<RecipeModel> recipes = new ArrayList<>();
-        SQLiteDatabase db = this.getReadableDatabase();
-
-        // SQL query to join Recipe and Image tables
-        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, Image.image_url " +
-                "FROM Recipe LEFT JOIN Image ON Recipe.id = Image.recipe_id " +
-                "WHERE Recipe.category_id = ?";
-
-        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(catId)});
-
-        if (cursor.moveToFirst()) {
-            do {
+        if(cursor != null && cursor.moveToFirst()){
+            do{
                 int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
                 int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
                 String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
                 String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
                 String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
                 int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
-                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
 
+                // Fetch image URL
+                String imageUrl = getImageUrlByRecipeId(id);
 
-
-                // Create a new RecipeModel object with all fields
-                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl);
-                recipes.add(recipe);
-            } while (cursor.moveToNext());
+                // Initialize RecipeModel with name
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+                recipeList.add(recipe);
+            } while(cursor.moveToNext());
+            cursor.close();
         }
-
-        cursor.close();
         db.close();
-        return recipes;
+        return recipeList;
+    }
+
+    public List<RecipeModel> getRecipesByCategoryId(int categoryId){
+        List<RecipeModel> recipeList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.category_id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(categoryId)});
+        if(cursor != null && cursor.moveToFirst()){
+            do{
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+                String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+                String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+                String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+                // Fetch image URL
+                String imageUrl = getImageUrlByRecipeId(id);
+
+                // Initialize RecipeModel with username
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+                recipeList.add(recipe);
+            } while(cursor.moveToNext());
+            cursor.close();
+        }
+        db.close();
+        return recipeList;
     }
 
 
@@ -356,36 +370,146 @@ public class DB extends SQLiteOpenHelper {
     // Inside DB.java
 
     // Inside DB.java
-
-    public List<RecipeModel> getRecipesByUserId(int userId) {
-        List<RecipeModel> recipes = new ArrayList<>();
+    public RecipeModel getRecipeById(int recipeId) {
         SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
+        RecipeModel recipe = null;
+        if(cursor != null && cursor.moveToFirst()){
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+            String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+            String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+            String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+            int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
 
-        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, Image.image_url " +
-                "FROM Recipe LEFT JOIN Image ON Recipe.id = Image.recipe_id " +
+            // Fetch image URL from Image table
+            String imageUrl = getImageUrlByRecipeId(recipeId);
+
+            // Initialize RecipeModel with all details
+            recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+            cursor.close();
+        }
+        db.close();
+        return recipe;
+    }
+
+    public List<AddRecipe.IngredientQuantity> getIngredientsByRecipeId(int recipeId){
+        List<AddRecipe.IngredientQuantity> ingredients = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Ingredient.emri, RecipeIngredient.sasia " +
+                "FROM RecipeIngredient " +
+                "JOIN Ingredient ON RecipeIngredient.ingredient_id = Ingredient.id " +
+                "WHERE RecipeIngredient.recipe_id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
+        if(cursor != null && cursor.moveToFirst()){
+            do{
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("emri"));
+                String quantity = cursor.getString(cursor.getColumnIndexOrThrow("sasia"));
+                ingredients.add(new AddRecipe.IngredientQuantity(name, quantity));
+            } while(cursor.moveToNext());
+            cursor.close();
+        }
+        db.close();
+        return ingredients;
+    }
+
+    public String getImageUrlByRecipeId(int recipeId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String imageUrl = null;
+        Cursor cursor = db.query("Image", new String[]{"image_url"}, "recipe_id = ?", new String[]{String.valueOf(recipeId)}, null, null, null);
+        if(cursor != null && cursor.moveToFirst()){
+            imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+            cursor.close();
+        }
+        db.close();
+        return imageUrl;
+    }
+    public RecipeModel getCompleteRecipeById(int recipeId){
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
+                "WHERE Recipe.id = ?";
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(recipeId)});
+        RecipeModel recipe = null;
+        if(cursor != null && cursor.moveToFirst()){
+            int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+            int userId = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
+            String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
+            String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
+            String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
+            int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
+            String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+
+            // Fetch image URL
+            String imageUrl = getImageUrlByRecipeId(recipeId);
+
+            // Initialize RecipeModel with username
+            recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+            cursor.close();
+        }
+        db.close();
+        return recipe;
+    }
+
+    public boolean deleteRecipe(int recipeId){
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.beginTransaction();
+        try{
+            // Delete from Image table
+            db.delete("Image", "recipe_id = ?", new String[]{String.valueOf(recipeId)});
+            // Delete from RecipeIngredient table
+            db.delete("RecipeIngredient", "recipe_id = ?", new String[]{String.valueOf(recipeId)});
+            // Delete from Recipe table
+            int rows = db.delete("Recipe", "id = ?", new String[]{String.valueOf(recipeId)});
+            if(rows > 0){
+                db.setTransactionSuccessful();
+                return true;
+            } else {
+                return false;
+            }
+        } catch(Exception e){
+            Log.e("DB", "Error deleting recipe: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        } finally {
+            db.endTransaction();
+            db.close();
+        }
+    }
+    public List<RecipeModel> getRecipesByUserId(int userId){
+        List<RecipeModel> recipeList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT Recipe.id, Recipe.user_id, Recipe.title, Recipe.description, Recipe.instructions, Recipe.category_id, User.name " +
+                "FROM Recipe " +
+                "JOIN User ON Recipe.user_id = User.id " +
                 "WHERE Recipe.user_id = ?";
-
         Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(userId)});
-
-        if (cursor.moveToFirst()) {
-            do {
+        if(cursor != null && cursor.moveToFirst()){
+            do{
                 int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
-                int uid = cursor.getInt(cursor.getColumnIndexOrThrow("user_id"));
                 String title = cursor.getString(cursor.getColumnIndexOrThrow("title"));
                 String description = cursor.getString(cursor.getColumnIndexOrThrow("description"));
                 String instructions = cursor.getString(cursor.getColumnIndexOrThrow("instructions"));
                 int categoryId = cursor.getInt(cursor.getColumnIndexOrThrow("category_id"));
-                String imageUrl = cursor.getString(cursor.getColumnIndexOrThrow("image_url"));
+                String name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
 
-                RecipeModel recipe = new RecipeModel(id, uid, title, description, instructions, categoryId, imageUrl);
-                recipes.add(recipe);
-            } while (cursor.moveToNext());
+                // Fetch image URL
+                String imageUrl = getImageUrlByRecipeId(id);
+
+                // Initialize RecipeModel with username
+                RecipeModel recipe = new RecipeModel(id, userId, title, description, instructions, categoryId, imageUrl, name);
+                recipeList.add(recipe);
+            } while(cursor.moveToNext());
+            cursor.close();
         }
-
-        cursor.close();
         db.close();
-
-        return recipes;
+        return recipeList;
     }
 
 

@@ -1,25 +1,29 @@
+// com/example/tastifyapp/RecipeAdapter.java
 package com.example.tastifyapp;
 
-import android.net.Uri;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-
+import android.widget.Button;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
-
 import java.util.List;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import androidx.core.content.ContextCompat;
 
 public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder> {
 
     private List<RecipeModel> recipeList;
+    private OnRecipeListener mOnRecipeListener;
+    private boolean showEditDelete;  // Flag to control button visibility
 
-    public RecipeAdapter(List<RecipeModel> recipeList) {
+    public RecipeAdapter(List<RecipeModel> recipeList, OnRecipeListener onRecipeListener, boolean showEditDelete) {
         this.recipeList = recipeList;
+        this.mOnRecipeListener = onRecipeListener;
+        this.showEditDelete = showEditDelete;  // Set based on the fragment using the adapter
     }
 
     @NonNull
@@ -27,33 +31,30 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
     public RecipeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.card_recipe, parent, false);
-        return new RecipeViewHolder(view);
+        return new RecipeViewHolder(view, mOnRecipeListener, showEditDelete);
     }
 
     @Override
     public void onBindViewHolder(@NonNull RecipeViewHolder holder, int position) {
-        // Get the RecipeModel at this position
         RecipeModel recipe = recipeList.get(position);
-
-        // Set the title and description
         holder.tvRecipeTitle.setText(recipe.getTitle());
         holder.tvRecipeSubtitle.setText(recipe.getDescription());
+        holder.tvRecipeCreator.setText("by " + recipe.getName());
 
-        // Log the image URI
-        Log.d("RecipeAdapter", "Loading image URI: " + recipe.getImageUrl());
-
-        // Load the image using Glide
         if (recipe.getImageUrl() != null && !recipe.getImageUrl().isEmpty()) {
-            Uri imageUri = Uri.parse(recipe.getImageUrl());
             Glide.with(holder.itemView.getContext())
-                    .load(imageUri)
-                    .placeholder(R.drawable.ic_placeholder) // Ensure you have this drawable
-                    .error(R.drawable.ic_error)             // Ensure you have this drawable
+                    .load(recipe.getImageUrl())
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .placeholder(R.drawable.ic_placeholder)
+                    .error(R.drawable.ic_error)
                     .into(holder.imgRecipe);
         } else {
-            // Set a default image or placeholder if no image is available
             holder.imgRecipe.setImageResource(R.drawable.ic_placeholder);
         }
+
+        // Set visibility of edit and delete buttons
+        holder.btnEditRecipe.setVisibility(showEditDelete ? View.VISIBLE : View.GONE);
+        holder.btnDeleteRecipe.setVisibility(showEditDelete ? View.VISIBLE : View.GONE);
     }
 
     @Override
@@ -66,18 +67,54 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         this.recipeList = newList;
         notifyDataSetChanged();
     }
-
-    static class RecipeViewHolder extends RecyclerView.ViewHolder {
-
+    public List<RecipeModel> getRecipeList() {
+        return recipeList;
+    }
+    public static class RecipeViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         ImageView imgRecipe;
-        TextView tvRecipeTitle;
-        TextView tvRecipeSubtitle;
+        TextView tvRecipeTitle, tvRecipeSubtitle, tvRecipeCreator;
+        Button btnEditRecipe, btnDeleteRecipe;
+        OnRecipeListener onRecipeListener;
 
-        RecipeViewHolder(@NonNull View itemView) {
+        RecipeViewHolder(@NonNull View itemView, OnRecipeListener onRecipeListener, boolean showEditDelete) {
             super(itemView);
             imgRecipe = itemView.findViewById(R.id.imgRecipe);
             tvRecipeTitle = itemView.findViewById(R.id.tvRecipeTitle);
             tvRecipeSubtitle = itemView.findViewById(R.id.tvRecipeSubtitle);
+            tvRecipeCreator = itemView.findViewById(R.id.tvRecipeCreator); // Updated TextView for name
+            btnEditRecipe = itemView.findViewById(R.id.btnEditRecipe);
+            btnDeleteRecipe = itemView.findViewById(R.id.btnDeleteRecipe);
+            this.onRecipeListener = onRecipeListener;
+
+            if (showEditDelete) {
+                btnEditRecipe.setOnClickListener(this);
+                btnDeleteRecipe.setOnClickListener(this);
+            }
+
+            // Set click listener for the entire item view
+            itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if(onRecipeListener != null){
+                        onRecipeListener.onItemClick(getAdapterPosition());
+                    }
+                }
+            });
         }
+
+        @Override
+        public void onClick(View v) {
+            if (v.getId() == btnEditRecipe.getId()) {
+                onRecipeListener.onEditClick(getAdapterPosition());
+            } else if (v.getId() == btnDeleteRecipe.getId()) {
+                onRecipeListener.onDeleteClick(getAdapterPosition());
+            }
+        }
+    }
+
+    public interface OnRecipeListener {
+        void onItemClick(int position);
+        void onEditClick(int position);
+        void onDeleteClick(int position);
     }
 }

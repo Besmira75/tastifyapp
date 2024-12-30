@@ -9,10 +9,24 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class WelcomeActivity extends AppCompatActivity {
 
+    private SessionManager sessionManager;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.welcome_page);
+
+        // Initialize SessionManager
+        sessionManager = new SessionManager(this);
+
+        // Check if user is already logged in
+        if (sessionManager.isLoggedIn()) {
+            // User is already logged in, redirect them to MainActivity
+            Intent intent = new Intent(WelcomeActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish(); // Make sure this activity is removed from the activity stack
+            return; // Ensure the rest of the onCreate does not execute
+        }
 
         // Initialize the buttons and text views
         Button btnRegister = findViewById(R.id.btnRegister);

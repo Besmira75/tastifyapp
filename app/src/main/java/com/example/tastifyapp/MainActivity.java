@@ -2,13 +2,17 @@ package com.example.tastifyapp;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+
 import com.google.android.material.navigation.NavigationView;
 
 public class MainActivity extends AppCompatActivity
@@ -55,7 +59,10 @@ public class MainActivity extends AppCompatActivity
         navigationView = findViewById(R.id.navigation_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        // 4. Log Out Button inside the sidebar
+        // 4. Populate Navigation Header with User's Name and Email
+        populateNavHeader();
+
+        // 5. Log Out Button inside the sidebar
         logoutButton = findViewById(R.id.button_logout);
         logoutButton.setOnClickListener(view -> {
             // Clear the user session
@@ -67,12 +74,40 @@ public class MainActivity extends AppCompatActivity
             finish(); // Prevent returning to MainActivity
         });
 
-        // 5. Default fragment
+        // 6. Default fragment
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.content_frame, new HomeFragment())
                     .commit();
             navigationView.setCheckedItem(R.id.nav_home);
+        }
+    }
+
+    /**
+     * Populates the navigation header with the user's name and email.
+     */
+    private void populateNavHeader(){
+        // Get the header view
+        View headerView = navigationView.getHeaderView(0);
+
+        // Find the TextViews
+        TextView tvHeaderTitle = headerView.findViewById(R.id.tvHeaderTitle);
+        TextView tvHeaderSubtitle = headerView.findViewById(R.id.tvHeaderSubtitle);
+
+        // Get user ID from session
+        int userId = sessionManager.getUserId();
+
+        // Get user details from DB
+        DB db = new DB(this);
+        UserModel user = db.getUserById(userId);
+
+        if(user != null){
+            tvHeaderTitle.setText(user.getName());
+            tvHeaderSubtitle.setText(user.getEmail());
+        } else {
+            // Handle null user (optional)
+            tvHeaderTitle.setText("User Name");
+            tvHeaderSubtitle.setText("user@example.com");
         }
     }
 
@@ -90,6 +125,7 @@ public class MainActivity extends AppCompatActivity
                     .commit();
         } else if (id == R.id.nav_profile) {
             Toast.makeText(this, "Profile clicked", Toast.LENGTH_SHORT).show();
+            // You can implement ProfileFragment or Activity here
         }
 
         // Close the drawer

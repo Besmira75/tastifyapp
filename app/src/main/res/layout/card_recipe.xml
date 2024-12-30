@@ -1,47 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardViewRecipe"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
-    app:cardUseCompatPadding="true"
-    app:cardElevation="4dp">
+    card_view:cardCornerRadius="8dp"
+    card_view:cardElevation="4dp">
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:orientation="vertical">
+        android:padding="8dp">
 
-        <!-- Recipe Image (thumbnail) -->
+        <!-- Recipe Image -->
         <ImageView
             android:id="@+id/imgRecipe"
-            android:layout_width="match_parent"
-            android:layout_height="180dp"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
             android:scaleType="centerCrop"
+            android:contentDescription="@string/recipe_image"
             android:src="@drawable/ic_placeholder"
-            android:contentDescription="@string/recipe_image" />
+            android:background="@drawable/image_placeholder_background" />
 
         <!-- Recipe Title -->
         <TextView
             android:id="@+id/tvRecipeTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:text="Recipe Title"
-            android:textSize="16sp"
-            android:textStyle="bold"/>
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_toEndOf="@id/imgRecipe"
+            android:layout_marginStart="8dp"
+            android:layout_alignTop="@id/imgRecipe" />
 
-        <!-- Short Description or Category Tag -->
+        <!-- Recipe Subtitle/Description -->
         <TextView
             android:id="@+id/tvRecipeSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Short Description"
-            android:textSize="14sp"/>
-    </LinearLayout>
+            android:text="Recipe Description"
+            android:textSize="14sp"
+            android:textColor="@color/gray_dark"
+            android:layout_below="@id/tvRecipeTitle"
+            android:layout_alignStart="@id/tvRecipeTitle" />
 
-</com.google.android.material.card.MaterialCardView>
+        <!-- Creator Name -->
+        <TextView
+            android:id="@+id/tvRecipeCreator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="by Name"
+            android:textSize="12sp"
+            android:textColor="@color/gray_light"
+            android:layout_below="@id/tvRecipeSubtitle"
+            android:layout_alignStart="@id/tvRecipeTitle"
+            android:layout_marginTop="4dp" />
+
+        <!-- Edit Button -->
+        <Button
+            android:id="@+id/btnEditRecipe"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Edit"
+            android:layout_alignParentEnd="true"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/colorPrimary"
+            android:textColor="@color/white"
+            android:visibility="gone" />
+
+        <!-- Delete Button -->
+        <Button
+            android:id="@+id/btnDeleteRecipe"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Delete"
+            android:layout_below="@id/btnEditRecipe"
+            android:layout_alignParentEnd="true"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/red"
+            android:textColor="@color/white"
+            android:visibility="gone" />
+
+    </RelativeLayout>
+
+</androidx.cardview.widget.CardView>

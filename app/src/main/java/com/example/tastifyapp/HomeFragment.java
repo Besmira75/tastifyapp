@@ -1,3 +1,4 @@
+// com/example/tastifyapp/HomeFragment.java
 package com.example.tastifyapp;
 
 import android.content.Intent;
@@ -13,7 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.List;
 
-public class HomeFragment extends Fragment {
+public class HomeFragment extends Fragment implements RecipeAdapter.OnRecipeListener {
 
     private RecyclerView recyclerCategories;
     private RecyclerView recyclerRecipes;
@@ -23,7 +24,7 @@ public class HomeFragment extends Fragment {
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+                             Bundle savedInstanceState){
         View rootView = inflater.inflate(R.layout.fragment_home, container, false);
 
         // Initialize DB
@@ -48,13 +49,14 @@ public class HomeFragment extends Fragment {
 
         // Load all recipes initially
         List<RecipeModel> recipeList = db.getAllRecipes();
-        // Create and set RecipeAdapter
-        recipeAdapter = new RecipeAdapter(recipeList);
+        // Create and set RecipeAdapter with OnRecipeListener and without Edit/Delete buttons
+        recipeAdapter = new RecipeAdapter(recipeList, this, false);
         recyclerRecipes.setAdapter(recipeAdapter);
 
         // Set click listener for adding a new recipe
         btnAddRecipe.setOnClickListener(v -> {
             Intent intent = new Intent(getActivity(), AddRecipe.class);
+            intent.putExtra(AddRecipe.MODE, AddRecipe.MODE_ADD);
             startActivity(intent);
         });
 
@@ -72,5 +74,38 @@ public class HomeFragment extends Fragment {
     // Helper method to update the RecipeAdapter with a new list of recipes
     private void updateRecipeList(List<RecipeModel> newList) {
         recipeAdapter.updateData(newList);
+    }
+
+    /**
+     * Handles the item click event to open RecipeDetailsActivity.
+     *
+     * @param position The position of the clicked item in the RecyclerView.
+     */
+    @Override
+    public void onItemClick(int position) {
+        RecipeModel clickedRecipe = recipeAdapter.getRecipeList().get(position);
+        Intent intent = new Intent(getActivity(), RecipeDetailsActivity.class);
+        intent.putExtra(AddRecipe.RECIPE_ID, clickedRecipe.getId());
+        startActivity(intent);
+    }
+
+    /**
+     * Handles the Edit button click event.
+     *
+     * @param position The position of the clicked item in the RecyclerView.
+     */
+    @Override
+    public void onEditClick(int position) {
+        // No action needed as Edit/Delete buttons are hidden in HomeFragment
+    }
+
+    /**
+     * Handles the Delete button click event.
+     *
+     * @param position The position of the clicked item in the RecyclerView.
+     */
+    @Override
+    public void onDeleteClick(int position) {
+        // No action needed as Edit/Delete buttons are hidden in HomeFragment
     }
 }

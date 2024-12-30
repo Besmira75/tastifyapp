@@ -45,13 +45,19 @@
         app:menu="@menu/nav_menu" />
 
     <!-- 2) The Log Out Button is in the same container, at the bottom -->
-    <Button
-        android:id="@+id/button_logout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Log Out"
-        android:backgroundTint="@android:color/holo_red_dark"
-        android:textColor="@android:color/white" />
-</LinearLayout>
+        <Button
+            android:id="@+id/button_logout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Log Out"
+            android:background="@drawable/button_logout_background"
+            android:textColor="@android:color/white"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:layout_margin="16dp"
+            android:layout_marginBottom="24dp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
 
     </androidx.drawerlayout.widget.DrawerLayout>
